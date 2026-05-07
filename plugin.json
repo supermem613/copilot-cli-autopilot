@@ -1,0 +1,19 @@
+{
+  "name": "copilot-cli-autopilot",
+  "description": "Autonomous turn continuation toward a stated objective for GitHub Copilot CLI, with a live sidecar viewer.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Marcus Markiewicz"
+  },
+  "license": "MIT",
+  "keywords": [
+    "copilot",
+    "copilot-cli",
+    "autopilot",
+    "autonomous",
+    "agent",
+    "continuation"
+  ],
+  "category": "productivity",
+  "skills": "skills/"
+}

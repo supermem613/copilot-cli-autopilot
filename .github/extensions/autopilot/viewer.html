@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>autopilot</title>
+<style>
+:root {
+    --bg: #0a0e14;
+    --surface: #131922;
+    --border: #1f2630;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #58a6ff;
+    --good: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    padding: 16px; overflow-y: auto;
+}
+header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+header h1 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; flex: 1; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.dot.live { background: var(--good); animation: pulse 2s ease-in-out infinite; }
+.dot.warn { background: var(--warn); }
+.dot.bad { background: var(--bad); }
+@keyframes pulse { 50% { opacity: 0.45; } }
+
+.card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; box-shadow: var(--shadow);
+    margin-bottom: 12px;
+}
+.card.armed { border-left: 3px solid var(--accent); }
+.card.paused { border-left: 3px solid var(--warn); }
+.card.complete { border-left: 3px solid var(--good); }
+.card.spent { border-left: 3px solid var(--muted); }
+.card.disabled { opacity: 0.6; }
+
+.status {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+    font-weight: 700; color: var(--accent); margin-bottom: 6px;
+}
+.status.paused { color: var(--warn); }
+.status.complete { color: var(--good); }
+.status.spent, .status.idle, .status.disabled { color: var(--muted); }
+
+.goal {
+    font-size: 16px; font-weight: 500; margin-bottom: 12px;
+    word-break: break-word;
+}
+.goal.empty { color: var(--muted); font-style: italic; font-weight: 400; }
+
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 4px; }
+.stat { }
+.stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 2px; }
+.stat-value { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-value.dim { color: var(--muted); font-size: 14px; font-weight: 400; }
+
+.bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.bar > div { height: 100%; background: var(--accent); transition: width 0.2s; }
+.bar.warn > div { background: var(--warn); }
+.bar.bad > div { background: var(--bad); }
+
+.actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+}
+button {
+    font: inherit; font-weight: 600;
+    padding: 14px 8px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    transition: background 0.1s, border-color 0.1s, transform 0.05s;
+}
+button:hover:not(:disabled) { background: #1c2330; border-color: var(--accent); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.primary { background: var(--accent); color: #0a0e14; border-color: var(--accent); }
+button.primary:hover:not(:disabled) { background: #79b8ff; border-color: #79b8ff; }
+button.warn { color: var(--warn); border-color: rgba(210,153,34,0.4); }
+button.warn:hover:not(:disabled) { background: rgba(210,153,34,0.12); border-color: var(--warn); }
+button.danger { color: var(--bad); border-color: rgba(248,81,73,0.4); }
+button.danger:hover:not(:disabled) { background: rgba(248,81,73,0.12); border-color: var(--bad); }
+button.span2 { grid-column: span 2; }
+
+.complete-summary {
+    background: rgba(63,185,80,0.08); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;
+    font-size: 13px; color: var(--text);
+}
+
+.empty-state {
+    text-align: center; padding: 32px 16px; color: var(--muted);
+}
+.empty-state code {
+    display: inline-block; margin-top: 8px;
+    background: var(--bg); padding: 4px 8px; border-radius: 4px;
+    border: 1px solid var(--border); font-size: 12px;
+}
+.footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<header>
+    <h1>autopilot</h1>
+    <span class="dot" id="connDot" title="WS connection"></span>
+</header>
+
+<div id="root"></div>
+
+<div class="footer">
+    session <span id="sid">—</span>
+</div>
+
+<script>
+const TOKEN = new URLSearchParams(location.search).get("token") || "";
+const SID = new URLSearchParams(location.search).get("sid") || "";
+document.getElementById("sid").textContent = SID.slice(0, 8) || "(unknown)";
+
+let state = null;
+let lastTickAt = null;
+
+function fmtDuration(ms) {
+    if (!Number.isFinite(ms) || ms < 0) return "—";
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return s + "s";
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + "m " + (s % 60) + "s";
+    const h = Math.floor(m / 60);
+    return h + "h " + (m % 60) + "m";
+}
+
+function fmtRel(iso) {
+    if (!iso) return "—";
+    const ms = Date.now() - new Date(iso).getTime();
+    if (ms < 5_000) return "just now";
+    return fmtDuration(ms) + " ago";
+}
+
+function render() {
+    const root = document.getElementById("root");
+    if (!state) {
+        root.innerHTML = `<div class="empty-state">Loading…</div>`;
+        return;
+    }
+    if (!state.enabled) {
+        root.innerHTML = `
+            <div class="card disabled">
+                <div class="status disabled">Disabled</div>
+                <div class="goal empty">autopilot is off</div>
+                <div class="actions"><button class="primary span2" data-act="on">Re-enable</button></div>
+            </div>`;
+        return;
+    }
+    if (state.status === "idle") {
+        root.innerHTML = `
+            <div class="empty-state">
+                No active objective.<br>
+                <code>/autopilot start &lt;objective&gt;</code>
+            </div>`;
+        return;
+    }
+
+    const isComplete = state.status === "complete";
+    const isPaused = state.status === "paused";
+    const isArmed = state.status === "armed";
+    const isSpent = state.status === "spent";
+    const elapsed = state.createdAt ? Date.now() - new Date(state.createdAt).getTime() : null;
+    const fired = state.continuationsFired || 0;
+    const cap = state.hardCap || 1;
+    const pct = Math.min(100, Math.round((fired / cap) * 100));
+    const barClass = pct > 80 ? "warn" : "";
+    const ctx = state.contextTokens;
+    const ctxMax = state.contextMaxTokens;
+    const ctxPct = (ctx && ctxMax) ? Math.round((ctx / ctxMax) * 100) : null;
+    const ctxBarClass = ctxPct === null ? "" : ctxPct > 90 ? "bad" : ctxPct > 75 ? "warn" : "";
+
+    root.innerHTML = `
+        <div class="card ${state.status}">
+            <div class="status ${state.status}">${state.status}${state.inFlight ? " · firing" : ""}</div>
+            <div class="goal">${escapeHtml(state.goal || "(no goal)")}</div>
+            ${isComplete && state.completeSummary ? `
+                <div class="complete-summary">✓ ${escapeHtml(state.completeSummary)}</div>` : ""}
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Continuations</div>
+                    <div class="stat-value">${fired} <span class="stat-value dim">/ ${cap}</span></div>
+                    <div class="bar ${barClass}"><div style="width:${pct}%"></div></div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Elapsed</div>
+                    <div class="stat-value" id="elapsed">${fmtDuration(elapsed)}</div>
+                    <div class="stat-label" style="margin-top:6px">Last fired</div>
+                    <div class="stat-value dim" id="lastFired">${fmtRel(state.lastFiredAt)}</div>
+                </div>
+                ${ctx !== null && ctx !== undefined ? `
+                <div class="stat" style="grid-column: span 2">
+                    <div class="stat-label">Context window ${ctxPct !== null ? "· " + ctxPct + "%" : ""}</div>
+                    <div class="stat-value dim">${ctx.toLocaleString()}${ctxMax ? " / " + ctxMax.toLocaleString() : ""} tokens</div>
+                    ${ctxPct !== null ? `<div class="bar ${ctxBarClass}"><div style="width:${ctxPct}%"></div></div>` : ""}
+                </div>` : ""}
+            </div>
+            <div class="actions">
+                ${isArmed   ? `<button class="warn"   data-act="pause">Pause</button>`  : ""}
+                ${isPaused  ? `<button class="primary" data-act="resume">Resume</button>` : ""}
+                ${(isArmed || isPaused) ? `<button class="danger" data-act="clear">Clear</button>` : ""}
+                ${(isSpent || isComplete) ? `<button class="primary span2" data-act="clear">Dismiss</button>` : ""}
+                <button class="span2" data-act="off">Turn autopilot off</button>
+            </div>
+        </div>`;
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
+    }[c]));
+}
+
+document.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const action = btn.dataset.act;
+    btn.disabled = true;
+    try {
+        const res = await fetch("/api/action", {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-token": TOKEN },
+            body: JSON.stringify({ action }),
+        });
+        if (!res.ok) console.error("action failed", action, res.status);
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+// Live tick for elapsed / lastFired without re-fetch.
+setInterval(() => {
+    if (!state || state.status === "idle" || !state.enabled) return;
+    const elapsedEl = document.getElementById("elapsed");
+    const lastEl = document.getElementById("lastFired");
+    if (elapsedEl && state.createdAt) {
+        elapsedEl.textContent = fmtDuration(Date.now() - new Date(state.createdAt).getTime());
+    }
+    if (lastEl) lastEl.textContent = fmtRel(state.lastFiredAt);
+}, 1000);
+
+let ws;
+let backoff = 250;
+let closing = false;
+function connect() {
+    if (closing) return;
+    const url = `ws://${location.host}/ws?token=${encodeURIComponent(TOKEN)}`;
+    ws = new WebSocket(url);
+    ws.onopen = () => {
+        backoff = 250;
+        document.getElementById("connDot").className = "dot live";
+    };
+    ws.onmessage = (ev) => {
+        try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === "state") {
+                state = msg.state;
+                render();
+            } else if (msg.type === "close") {
+                // Server-initiated shutdown — suppress reconnect, then close
+                // the window. If window.close() is blocked (e.g. opened by
+                // user navigation rather than --app=), at least the page
+                // stays quiet and stops hammering the dead server.
+                closing = true;
+                try { ws.close(); } catch {}
+                document.getElementById("connDot").className = "dot bad";
+                window.close();
+            }
+        } catch {}
+    };
+    ws.onclose = () => {
+        if (closing) return;
+        document.getElementById("connDot").className = "dot warn";
+        setTimeout(connect, backoff);
+        backoff = Math.min(backoff * 2, 5000);
+    };
+    ws.onerror = () => { try { ws.close(); } catch {} };
+}
+connect();
+</script>
+</body>
+</html>
