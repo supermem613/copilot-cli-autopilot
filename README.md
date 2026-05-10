@@ -145,7 +145,7 @@ Then `/extensions` → reload `autopilot`. Edits to the working tree take effect
 copilot-cli-autopilot/
 ├── .github/
 │   ├── extensions/autopilot/    SDK extension (extension.mjs + 6 modules + viewer.html + tests)
-│   └── workflows/ci.yml         Cross-platform CI: node --check + tests on Node 22 & 24
+│   └── workflows/ci.yml         Cross-platform CI: node --check + tests on Node 24
 ├── scripts/
 │   └── install-extension-shim.mjs   Writes the user-scoped delegate after plugin install
 ├── skills/

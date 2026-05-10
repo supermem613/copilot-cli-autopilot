@@ -9,7 +9,7 @@
     "check": "node --check .github/extensions/autopilot/extension.mjs && node --check .github/extensions/autopilot/controller.mjs && node --check .github/extensions/autopilot/commands.mjs && node --check .github/extensions/autopilot/state.mjs && node --check .github/extensions/autopilot/persistence.mjs && node --check .github/extensions/autopilot/prompt.mjs && node --check .github/extensions/autopilot/sidecar.mjs && node --check scripts/install-extension-shim.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24.0.0"
   },
   "license": "MIT",
   "repository": {
