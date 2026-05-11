@@ -53,6 +53,7 @@ async function run() {
     assert.equal(controller.snapshot.outputTokens, 0, "new objective resets output tokens");
     assert.ok(states.some((s) => s.inputTokens === 150), "usage updates notify sidecar");
 
+    await controller.shutdown();
     await rm(workspace, { recursive: true, force: true });
     console.log("✓ test-usage: 8/8 passed");
 }

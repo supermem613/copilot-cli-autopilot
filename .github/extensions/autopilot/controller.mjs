@@ -21,6 +21,11 @@ export const GRACE_MS = 1500;
 
 export function createController({ session, workspacePath, log, onStateChange }) {
     let state;
+    let shuttingDown = false;
+    const activeTasks = new Set();
+    const sendTimers = new Set();
+    const shutdownController = new AbortController();
+    let kickoffTimer = null;
     // Serialize state writes so two near-simultaneous mutations cannot tear each
     // other (atomic rename helps within a single write, but two concurrent
     // writes could still race on the rename target). Errors propagate to the
@@ -32,6 +37,46 @@ export function createController({ session, workspacePath, log, onStateChange })
         const next = writeQueue.then(() => saveState(workspacePath, snapshot));
         writeQueue = next.catch(() => {});
         return next;
+    }
+
+    function track(task) {
+        const tracked = Promise.resolve(task);
+        activeTasks.add(tracked);
+        tracked.then(
+            () => activeTasks.delete(tracked),
+            () => activeTasks.delete(tracked),
+        );
+        return tracked;
+    }
+
+    function clearKickoff() {
+        if (!kickoffTimer) return;
+        clearImmediate(kickoffTimer);
+        kickoffTimer = null;
+    }
+
+    function scheduleKickoff(fn) {
+        clearKickoff();
+        kickoffTimer = setImmediate(() => {
+            kickoffTimer = null;
+            if (shuttingDown) return;
+            track(fn());
+        });
+    }
+
+    function scheduleSend(fn) {
+        const timer = setTimeout(() => {
+            sendTimers.delete(timer);
+            if (shuttingDown) return;
+            track(fn());
+        }, 0);
+        sendTimers.add(timer);
+    }
+
+    async function drainActiveTasks() {
+        while (activeTasks.size > 0) {
+            await Promise.allSettled([...activeTasks]);
+        }
     }
 
     // Fire-and-forget notification to the sidecar (or any listener). Errors
@@ -74,6 +119,16 @@ export function createController({ session, workspacePath, log, onStateChange })
         get snapshot() { return { ...state }; },
 
         summary() { return summarize(state); },
+
+        async shutdown() {
+            shuttingDown = true;
+            clearKickoff();
+            for (const timer of sendTimers) clearTimeout(timer);
+            sendTimers.clear();
+            shutdownController.abort();
+            await drainActiveTasks();
+            await writeQueue.catch(() => {});
+        },
 
         // Coarse context-window tracking. Updated on session.usage_info.
         // In-memory only — not worth a disk write per tick. The next idle/start
@@ -146,11 +201,11 @@ export function createController({ session, workspacePath, log, onStateChange })
             // aborted=false so the normal grace+recheck path applies.
             // setImmediate (next-tick) ensures the slash command's response
             // is logged before the "idle observed" banner.
-            setImmediate(() => {
+            scheduleKickoff(() =>
                 this.onIdle({ aborted: false }).catch((err) =>
                     log(`autopilot: kickoff failed: ${err?.message ?? err}`, { level: "error" }),
-                );
-            });
+                )
+            );
         },
 
         async pause() {
@@ -224,6 +279,7 @@ export function createController({ session, workspacePath, log, onStateChange })
         },
 
         async onIdle(data) {
+            if (shuttingDown) return;
             const decision = shouldFire(state, data);
             if (!decision.fire) {
                 // Surface the spent transition so /autopilot show is accurate.
@@ -251,11 +307,18 @@ export function createController({ session, workspacePath, log, onStateChange })
                 `autopilot: idle observed; grace=${GRACE_MS}ms before firing toward "${capturedGoal}". ` +
                 `Cancel via /autopilot pause|off|clear.`,
             );
-            await sleep(GRACE_MS);
+            const graceElapsed = await sleep(GRACE_MS, shutdownController.signal);
+            if (!graceElapsed) {
+                const prev2 = state;
+                try {
+                    await commit(prev2, { ...state, inFlight: false }, "release reservation");
+                } catch { /* logged + reverted in commit */ }
+                return;
+            }
 
             // Post-grace re-check. Cancel if any of: disabled, no longer armed,
             // OR objective changed (user replaced goal during grace).
-            if (!state.enabled || state.status !== "armed" || state.goal !== capturedGoal) {
+            if (shuttingDown || !state.enabled || state.status !== "armed" || state.goal !== capturedGoal) {
                 const prev2 = state;
                 try {
                     await commit(prev2, { ...state, inFlight: false }, "release reservation");
@@ -276,7 +339,7 @@ export function createController({ session, workspacePath, log, onStateChange })
             const cap = state.hardCap;
             const fired = state.continuationsFired;
 
-            setTimeout(async () => {
+            scheduleSend(async () => {
                 try {
                     await session.send({
                         prompt: buildContinuationPrompt(goal, fired, cap),
@@ -289,13 +352,28 @@ export function createController({ session, workspacePath, log, onStateChange })
                         await commit(prev4, markFireSettled(state), "settle fire");
                     } catch { /* logged in commit */ }
                 }
-            }, 0);
+            });
         },
     };
 }
 
-function sleep(ms) {
-    return new Promise((r) => setTimeout(r, ms));
+function sleep(ms, signal) {
+    return new Promise((resolve) => {
+        if (signal?.aborted) {
+            resolve(false);
+            return;
+        }
+        let timer;
+        const onAbort = () => {
+            clearTimeout(timer);
+            resolve(false);
+        };
+        timer = setTimeout(() => {
+            signal?.removeEventListener("abort", onAbort);
+            resolve(true);
+        }, ms);
+        signal?.addEventListener("abort", onAbort, { once: true });
+    });
 }
 
 function tokenCount(value) {

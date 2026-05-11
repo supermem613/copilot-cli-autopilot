@@ -112,6 +112,7 @@ session.on("assistant.usage", (event) => {
 });
 
 session.on?.("session.end", () => {
+    controller.shutdown().catch(() => {});
     sidecar.shutdown().catch(() => {});
 });
 
