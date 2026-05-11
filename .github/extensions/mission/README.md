@@ -30,13 +30,15 @@ The agent works another turn. Loop continues. When the agent finishes, it emits 
 | Command | Effect |
 | --- | --- |
 | `/mission start <objective>` | Arm a new objective. If one is active, you're asked to confirm replacement (when the host supports it). |
-| `/mission show` | Print current status, objective, and remaining budget. |
+| `/mission show` | Print current status and open the sidecar UX with the latest snapshot. |
 | `/mission pause` | Suppress continuations; objective is preserved. |
 | `/mission resume` | Un-pause. |
 | `/mission clear` | Drop the objective; return to idle. |
 | `/mission off` | **Durable** disable. Persists across sessions. |
 | `/mission on` | Re-enable after `off`. |
 | `/mission help` | Subcommand list. |
+
+When `/mission show` opens the sidecar with no active objective, the idle view includes an objective text box and **Start mission** button. The button uses the same localhost control channel as Pause / Resume / Stop, so starting from the sidecar does not require returning to the terminal.
 
 Cancelling during the grace window via `pause`, `clear`, or `off` prevents the next continuation from firing — no model spend.
 

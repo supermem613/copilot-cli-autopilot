@@ -19,7 +19,7 @@ import { buildContinuationPrompt, detectComplete } from "./prompt.mjs";
 
 export const GRACE_MS = 1500;
 
-export function createController({ session, workspacePath, log, onStateChange }) {
+export function createController({ session, workspacePath, log, onStateChange, onShow }) {
     let state;
     let shuttingDown = false;
     const activeTasks = new Set();
@@ -252,7 +252,12 @@ export function createController({ session, workspacePath, log, onStateChange })
             await log("mission ON. No objective armed. /mission start <text> to begin.");
         },
 
-        async show() { await log(summarize(state)); },
+        async show() {
+            await log(summarize(state));
+            if (onShow) {
+                await onShow({ ...state });
+            }
+        },
 
         // Plan-mode coupling: when the host switches to plan mode, auto-pause an
         // armed objective so we don't continue while the user is planning. Never

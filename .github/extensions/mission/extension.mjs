@@ -58,6 +58,7 @@ const sidecar = createSidecar({
         clearObjective: (...a) => controllerRef.value.clearObjective(...a),
         turnOff:        (...a) => controllerRef.value.turnOff(...a),
         turnOn:         (...a) => controllerRef.value.turnOn(...a),
+        start:          (...a) => controllerRef.value.start(...a),
         get snapshot()  { return controllerRef.value?.snapshot ?? null; },
     },
 });
@@ -71,6 +72,7 @@ const controller = createController({
             logFn(`mission: sidecar sync failed: ${err?.message ?? err}`, { level: "warning" }),
         );
     },
+    onShow: (state) => sidecar.show(state),
 });
 controllerRef.value = controller;
 await controller.init();

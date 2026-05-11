@@ -18,13 +18,14 @@
     --shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { min-height: 100%; }
+html, body { width: max-content; height: max-content; }
 body {
     font: 14px/1.5 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
     background: var(--bg); color: var(--text);
     overflow: hidden;
 }
-.shell { padding: 12px; }
+.shell { padding: 10px; width: 440px; }
+.toolbar { display: flex; justify-content: flex-end; margin-bottom: 6px; }
 
 .card {
     background: var(--surface); border: 1px solid var(--border);
@@ -80,6 +81,10 @@ button.warn:hover:not(:disabled) { background: rgba(210,153,34,0.12); border-col
 button.danger { color: var(--bad); border-color: rgba(248,81,73,0.4); }
 button.danger:hover:not(:disabled) { background: rgba(248,81,73,0.12); border-color: var(--bad); }
 button.span2 { grid-column: span 2; }
+.refresh-btn {
+    width: 26px; height: 24px; padding: 0; display: grid; place-items: center;
+    font-size: 13px; line-height: 1; color: var(--muted);
+}
 .icon-btn {
     width: 100%; height: 52px; padding: 0; display: grid; place-items: center;
     font-size: 18px; line-height: 1; border-radius: 9px;
@@ -92,7 +97,7 @@ button.span2 { grid-column: span 2; }
 }
 
 .empty-state {
-    text-align: center; padding: 36px 16px; color: var(--muted);
+    text-align: center; padding: 18px 16px; color: var(--muted);
     background: var(--surface); border: 1px dashed var(--border); border-radius: 10px;
 }
 .empty-state code {
@@ -100,10 +105,23 @@ button.span2 { grid-column: span 2; }
     background: var(--bg); padding: 4px 8px; border-radius: 4px;
     border: 1px solid var(--border); font-size: 12px;
 }
+.start-form { display: grid; gap: 10px; margin-top: 12px; text-align: left; }
+.start-form label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--muted); font-weight: 700;
+}
+textarea {
+    width: 100%; min-height: 92px; resize: vertical;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); padding: 10px;
+    font: inherit;
+}
+textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88,166,255,0.18); }
 </style>
 </head>
 <body>
 <main class="shell">
+<div class="toolbar"><button class="refresh-btn" id="refreshButton" title="Refresh" aria-label="Refresh">↻</button></div>
 <div id="root"></div>
 </main>
 
@@ -111,6 +129,7 @@ button.span2 { grid-column: span 2; }
 const TOKEN = new URLSearchParams(location.search).get("token") || "";
 
 let state = null;
+let lastRenderedStatus = null;
 
 function fmtDuration(ms) {
     if (!Number.isFinite(ms) || ms < 0) return "—";
@@ -137,6 +156,8 @@ function render() {
     const root = document.getElementById("root");
     if (!state) {
         root.innerHTML = `<div class="empty-state">Loading…</div>`;
+        lastRenderedStatus = null;
+        scheduleResize();
         return;
     }
     if (!state.enabled) {
@@ -146,14 +167,24 @@ function render() {
                 <div class="goal empty">mission is off</div>
                 <div class="actions"><button class="primary span2" data-act="on">Re-enable</button></div>
             </div>`;
+        lastRenderedStatus = state.status;
+        scheduleResize();
         return;
     }
     if (state.status === "idle") {
+        const shouldFocusObjective = lastRenderedStatus !== "idle";
         root.innerHTML = `
             <div class="empty-state">
-                No active objective.<br>
-                <code>/mission start &lt;objective&gt;</code>
+                <div>No active objective.</div>
+                <form class="start-form" id="startForm">
+                    <label for="objectiveInput">Objective</label>
+                    <textarea id="objectiveInput" name="objective" placeholder="Describe the mission objective"></textarea>
+                    <button class="primary" type="submit">Start mission</button>
+                </form>
             </div>`;
+        lastRenderedStatus = state.status;
+        if (shouldFocusObjective) document.getElementById("objectiveInput")?.focus();
+        scheduleResize();
         return;
     }
 
@@ -200,7 +231,8 @@ function render() {
                 <button class="icon-btn danger" data-act="clear" title="Stop" aria-label="Stop">⏹</button>
             </div>
         </div>`;
-    resizeToContent();
+    lastRenderedStatus = state.status;
+    scheduleResize();
 }
 
 function escapeHtml(s) {
@@ -210,13 +242,24 @@ function escapeHtml(s) {
 }
 
 function resizeToContent() {
-    const width = 440;
     const shell = document.querySelector(".shell");
-    const contentHeight = Math.ceil(shell?.getBoundingClientRect().height || document.body.scrollHeight);
-    const chromeHeight = Math.max(88, window.outerHeight - window.innerHeight);
-    const height = Math.min(560, Math.max(260, contentHeight + chromeHeight + 8));
+    if (!shell) return;
+    const rect = shell.getBoundingClientRect();
+    const chromeWidth = Math.max(0, window.outerWidth - window.innerWidth);
+    const rawChromeHeight = Math.max(0, window.outerHeight - window.innerHeight);
+    const chromeHeight = rawChromeHeight > 0 ? rawChromeHeight : 36;
+    const width = Math.ceil(rect.width + chromeWidth);
+    const height = Math.ceil(rect.height + chromeHeight);
     try { window.resizeTo(width, height); } catch {}
 }
+
+function scheduleResize() {
+    requestAnimationFrame(resizeToContent);
+}
+
+document.getElementById("refreshButton")?.addEventListener("click", () => {
+    location.reload();
+});
 
 document.addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-act]");
@@ -232,6 +275,30 @@ document.addEventListener("click", async (e) => {
         if (!res.ok) console.error("action failed", action, res.status);
     } finally {
         btn.disabled = false;
+    }
+});
+
+document.addEventListener("submit", async (e) => {
+    if (e.target?.id !== "startForm") return;
+    e.preventDefault();
+    const form = e.target;
+    const input = form.querySelector("#objectiveInput");
+    const button = form.querySelector("button[type=submit]");
+    const objective = input?.value?.trim() || "";
+    if (!objective) {
+        input?.focus();
+        return;
+    }
+    if (button) button.disabled = true;
+    try {
+        const res = await fetch("/api/action", {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-token": TOKEN },
+            body: JSON.stringify({ action: "start", objective }),
+        });
+        if (!res.ok) console.error("action failed", "start", res.status);
+    } finally {
+        if (button) button.disabled = false;
     }
 });
 

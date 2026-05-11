@@ -11,7 +11,7 @@
 // Wire protocol:
 //   Server → client: { type: "state", state: <full state snapshot> }
 //                    { type: "close" }  (asks the page to close itself)
-//   Client → server: POST /api/action { action: "pause"|"resume"|"clear"|"off"|"on" }
+//   Client → server: POST /api/action { action: "pause"|"resume"|"clear"|"off"|"on"|"start", objective?: string }
 
 import { createServer as createHttpServer } from "node:http";
 import { spawn } from "node:child_process";
@@ -70,6 +70,16 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
             } else if (server) {
                 await stopInternal();
             }
+        });
+    }
+
+    function show(state) {
+        return withLifecycleLock(async () => {
+            if (!server) {
+                await startServer();
+            }
+            launchViewerIfMissing();
+            broadcast(state);
         });
     }
 
@@ -148,9 +158,9 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
                 res.writeHead(401); res.end("unauthorized"); return;
             }
             const body = await readBody(req);
-            let action;
-            try { action = JSON.parse(body).action; } catch { res.writeHead(400); res.end("bad json"); return; }
-            await dispatchAction(action);
+            let payload;
+            try { payload = JSON.parse(body); } catch { res.writeHead(400); res.end("bad json"); return; }
+            await dispatchAction(payload);
             res.writeHead(200, { "content-type": "application/json" });
             res.end(JSON.stringify({ ok: true }));
             return;
@@ -158,7 +168,8 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
         res.writeHead(404); res.end("not found");
     }
 
-    async function dispatchAction(action) {
+    async function dispatchAction(payload) {
+        const action = payload?.action;
         try {
             switch (action) {
                 case "pause":  await controller.pause(); break;
@@ -166,6 +177,7 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
                 case "clear":  await controller.clearObjective(); break;
                 case "off":    await controller.turnOff(); break;
                 case "on":     await controller.turnOn(); break;
+                case "start":  await dispatchStart(payload); break;
                 default:
                     await log(`mission sidecar: unknown action "${action}"`, { level: "warning" });
             }
@@ -173,6 +185,15 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
             await log(`mission sidecar: action "${action}" failed: ${err?.message ?? err}`,
                 { level: "error" });
         }
+    }
+
+    async function dispatchStart(payload) {
+        const objective = typeof payload?.objective === "string" ? payload.objective.trim() : "";
+        if (!objective) {
+            await log("mission sidecar: start requires an objective", { level: "warning" });
+            return;
+        }
+        await controller.start(objective);
     }
 
     function acceptWs(req, sock) {
@@ -202,7 +223,7 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
             const args = [
                 `--app=${url}`,
                 `--user-data-dir=${VIEWER_PROFILE_DIR}`,
-                "--window-size=440,390",
+                "--window-size=460,260",
                 "--window-position=1380,80",
                 "--no-first-run",
                 "--no-default-browser-check",
@@ -223,6 +244,7 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
 
     return {
         syncVisibility,
+        show,
         async shutdown() { await withLifecycleLock(stopInternal); },
         get isRunning() { return server !== null; },
         get port() { return port; },

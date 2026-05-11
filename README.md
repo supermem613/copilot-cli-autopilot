@@ -91,6 +91,9 @@ Enable `mission` under **User**. Then run `/mission help` to confirm.
 /mission on
 ```
 
+`/mission show` prints the current status and opens the sidecar UX with the latest snapshot, even when there is no active objective.
+When idle, the sidecar includes an objective text box and **Start mission** button so you can start from the UX.
+
 The agent works one turn, becomes idle, mission waits ~1.5s (grace window — your chance to cancel), then injects a continuation prompt visible in the timeline:
 
 ```

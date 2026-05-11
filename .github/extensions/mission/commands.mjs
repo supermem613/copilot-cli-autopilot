@@ -15,7 +15,7 @@ const MAX_HARD_CAP = 100;
 const HELP = [
     "mission subcommands:",
     "  /mission start [--cap N] <objective>  arm a new objective (default cap 20, max 100)",
-    "  /mission show               print current status",
+    "  /mission show               print status and open the sidecar UX",
     "  /mission pause              suppress continuations (keeps objective)",
     "  /mission resume             un-pause",
     "  /mission clear              clear objective (returns to idle)",
