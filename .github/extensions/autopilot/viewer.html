@@ -18,13 +18,13 @@
     --shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
+html, body { min-height: 100%; }
 body {
     font: 14px/1.5 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
     background: var(--bg); color: var(--text);
     overflow: hidden;
 }
-.shell { min-height: 100%; padding: 12px; }
+.shell { padding: 12px; }
 
 .card {
     background: var(--surface); border: 1px solid var(--border);
@@ -211,7 +211,8 @@ function escapeHtml(s) {
 
 function resizeToContent() {
     const width = 440;
-    const contentHeight = Math.ceil(document.documentElement.scrollHeight);
+    const shell = document.querySelector(".shell");
+    const contentHeight = Math.ceil(shell?.getBoundingClientRect().height || document.body.scrollHeight);
     const chromeHeight = Math.max(88, window.outerHeight - window.innerHeight);
     const height = Math.min(560, Math.max(260, contentHeight + chromeHeight + 8));
     try { window.resizeTo(width, height); } catch {}

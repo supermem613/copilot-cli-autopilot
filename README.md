@@ -4,7 +4,9 @@ A GitHub Copilot CLI extension that **autonomously continues turns toward a stat
 
 Tell autopilot your goal once with `/autopilot start <objective>`. It nudges the agent to keep working toward that objective, one continuation per idle turn, until the agent emits `AUTOPILOT_COMPLETE: <summary>` or the turn cap is exhausted.
 
-A chromeless sidecar window opens automatically while a goal is armed, showing the live status, continuations fired vs. cap, elapsed time, context-window pressure, best-effort input/output token consumption, and big buttons for **Pause / Resume / Clear / Turn off** that work even mid-turn (they bypass the host's slash-command queue).
+A chromeless sidecar window opens automatically while a goal is armed, showing live status, turns, elapsed time, best-effort input/output token consumption, and large icon controls that work even mid-turn.
+
+![Autopilot sidecar showing status, token panels, and pause/stop controls](./.github/extensions/autopilot/docs/autopilot-sidecar.png)
 
 Inspired by Codex's `/goal` feature — built as a pure Copilot CLI extension with no host-side changes.
 
@@ -98,7 +100,7 @@ Otherwise take the next concrete step.
 
 When the agent finishes, it emits the `AUTOPILOT_COMPLETE:` line and autopilot stops automatically.
 
-The sidecar window (chromeless `msedge --app=` on Windows; falls back to default browser elsewhere) is open while a goal is active. Click **Pause / Resume / Clear / Turn off** any time — the buttons hit a localhost HTTP endpoint that bypasses the host's slash-command queue, so they work *during* an in-flight LLM turn.
+The sidecar window (chromeless `msedge --app=` on Windows; falls back to default browser elsewhere) is open while a goal is active. Click **Pause / Resume** or **Stop** any time — the buttons hit a localhost HTTP endpoint that bypasses the host's slash-command queue, so they work *during* an in-flight LLM turn.
 
 See [`.github/extensions/autopilot/README.md`](./.github/extensions/autopilot/README.md) for the full command reference, safety/kill-switches, non-goals, and architecture notes.
 

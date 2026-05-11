@@ -71,14 +71,14 @@ These differ from Codex's `/goal` because the Copilot CLI extension API doesn't 
 
 When an objective is armed (status: `armed`, `paused`, `spent`, or `complete`), autopilot opens a small chromeless browser window with:
 
+![Autopilot sidecar showing status, token panels, and pause/stop controls](./docs/autopilot-sidecar.png)
+
 - **Status badge** — `armed` / `paused` / `spent` / `complete`, with a `· firing` suffix while a continuation is in-flight.
 - **Active objective** — wrapped, full-text.
-- **Continuations bar** — fired / cap, with a progress bar that tints amber above 80%.
+- **Turns** — fired / cap.
 - **Elapsed timer** — live ticking since the objective was armed.
-- **Last fired** — relative timestamp ("12s ago"), live.
-- **Context window** — current tokens / max from `session.usage_info`, with bar color shifting amber > 75% and red > 90%.
-- **Token consumption** — best-effort root-agent `assistant.usage` totals for input/output tokens, plus cache/reasoning details when present. Counters reset on each new objective and are not persisted across extension reloads.
-- **Buttons** — `Pause` / `Resume` / `Clear` / `Turn autopilot off`. When the run is `complete` or `spent` the only active button is `Dismiss` (clear).
+- **Token consumption** — separate best-effort root-agent `assistant.usage` totals for input and output tokens. Counters reset on each new objective and are not persisted across extension reloads.
+- **Controls** — large icon buttons for `Pause` / `Resume` and `Stop`.
 
 The window auto-closes when status returns to `idle` (cleared) or autopilot is turned off.
 
