@@ -23,6 +23,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const VIEWER_HTML = readFileSync(join(__dirname, "viewer.html"), "utf8");
+const FAVICON_SVG = readFileSync(join(__dirname, "favicon.svg"));
 
 // Match session.workspacePath profile dir, separate from backlog's so
 // browser cookies/history don't collide.
@@ -61,14 +62,21 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
             if (shouldShow) {
                 if (!server) {
                     await startServer();
-                    if (!noLaunch) spawnViewerWindow();
-                    viewerSpawnedAt = Date.now();
+                    launchViewerIfMissing();
+                } else {
+                    launchViewerIfMissing();
                 }
                 broadcast(state);
             } else if (server) {
                 await stopInternal();
             }
         });
+    }
+
+    function launchViewerIfMissing() {
+        if (noLaunch || wsClients.size > 0) return;
+        if (viewerSpawnedAt && Date.now() - viewerSpawnedAt < 5000) return;
+        if (spawnViewerWindow()) viewerSpawnedAt = Date.now();
     }
 
     async function stopInternal() {
@@ -130,6 +138,11 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
             res.end(VIEWER_HTML);
             return;
         }
+        if (req.method === "GET" && url.pathname === "/favicon.svg") {
+            res.writeHead(200, { "content-type": "image/svg+xml", "cache-control": "max-age=86400" });
+            res.end(FAVICON_SVG);
+            return;
+        }
         if (req.method === "POST" && url.pathname === "/api/action") {
             if (req.headers["x-token"] !== token) {
                 res.writeHead(401); res.end("unauthorized"); return;
@@ -189,7 +202,7 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
             const args = [
                 `--app=${url}`,
                 `--user-data-dir=${VIEWER_PROFILE_DIR}`,
-                "--window-size=440,560",
+                "--window-size=440,390",
                 "--window-position=1380,80",
                 "--no-first-run",
                 "--no-default-browser-check",

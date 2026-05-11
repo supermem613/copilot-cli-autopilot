@@ -106,9 +106,13 @@ session.on("session.usage_info", (event) => {
     try { controller.onUsageInfo(event.data); } catch { /* advisory only */ }
 });
 
+session.on("assistant.usage", (event) => {
+    if (event.agentId) return;
+    controller.onAssistantUsage(event.data, event.timestamp);
+});
+
 session.on?.("session.end", () => {
     sidecar.shutdown().catch(() => {});
 });
 
 await logFn(`autopilot ready: ${controller.summary()}`, { ephemeral: true });
-

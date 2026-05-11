@@ -56,7 +56,7 @@ These differ from Codex's `/goal` because the Copilot CLI extension API doesn't 
 | --- | --- | --- |
 | Persistent footer / statusline showing the active objective | **Not provided.** | The CLI exposes `session.log()` to the scrollback timeline only. There is no extension-visible footer/statusline channel. We tried OSC 0 escape sequences (`ESC ] 0 ; <text> BEL`) to write the terminal title bar from the extension subprocess; the host PTY captures and discards them. Confirmed dead end. |
 | Notification suppression while continuations fire | **Not provided.** | No SDK API for muting notifications from an extension. |
-| Exact token budget tracking | **Approximate.** | The SDK's `assistant.usage` event undercounts sub-agent and MCP token usage, and the runtime intentionally exposes only context-window pressure (`session.usage_info`), not aggregated spend. The hard turn cap is the durable safety; budget reporting is best-effort. |
+| Exact token budget tracking | **Approximate.** | The sidecar accumulates root-agent `assistant.usage` input/output/cache/reasoning token deltas while an objective is active. SDK usage events can undercount sub-agent and MCP token usage. The hard turn cap is the durable safety; budget reporting is best-effort. |
 | Works without infinite sessions | **No.** | Without `session.workspacePath` the durable `off` flag and an active objective would silently vanish on `/clear` or resume. We fail loud at startup rather than pretend to work. |
 
 ## Safety / kill switches
@@ -77,6 +77,7 @@ When an objective is armed (status: `armed`, `paused`, `spent`, or `complete`), 
 - **Elapsed timer** — live ticking since the objective was armed.
 - **Last fired** — relative timestamp ("12s ago"), live.
 - **Context window** — current tokens / max from `session.usage_info`, with bar color shifting amber > 75% and red > 90%.
+- **Token consumption** — best-effort root-agent `assistant.usage` totals for input/output tokens, plus cache/reasoning details when present. Counters reset on each new objective and are not persisted across extension reloads.
 - **Buttons** — `Pause` / `Resume` / `Clear` / `Turn autopilot off`. When the run is `complete` or `spent` the only active button is `Dismiss` (clear).
 
 The window auto-closes when status returns to `idle` (cleared) or autopilot is turned off.

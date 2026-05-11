@@ -25,7 +25,24 @@ export function statePath(workspacePath) {
 // Volatile fields — never persisted. They reflect runtime telemetry that
 // would be stale on the next session. Cleared on save and on load.
 // (Shadow review: stale context tokens shown after resume.)
-const VOLATILE_FIELDS = ["contextTokens", "contextMaxTokens", "contextUpdatedAt"];
+const VOLATILE_FIELDS = [
+    "contextTokens",
+    "contextMaxTokens",
+    "contextUpdatedAt",
+    "inputTokens",
+    "outputTokens",
+    "cacheReadTokens",
+    "cacheWriteTokens",
+    "reasoningTokens",
+    "tokenUpdatedAt",
+];
+const TOKEN_COUNTER_FIELDS = new Set([
+    "inputTokens",
+    "outputTokens",
+    "cacheReadTokens",
+    "cacheWriteTokens",
+    "reasoningTokens",
+]);
 
 function stripVolatile(state) {
     const out = { ...state };
@@ -40,7 +57,7 @@ export async function loadState(workspacePath) {
         const parsed = normalizeState(JSON.parse(raw));
         // Belt-and-braces: also strip on load in case a prior version
         // accidentally persisted these.
-        for (const k of VOLATILE_FIELDS) parsed[k] = null;
+        for (const k of VOLATILE_FIELDS) parsed[k] = TOKEN_COUNTER_FIELDS.has(k) ? 0 : null;
         return parsed;
     } catch (err) {
         if (err.code === "ENOENT") return makeDefaultState();

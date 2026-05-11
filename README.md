@@ -4,7 +4,7 @@ A GitHub Copilot CLI extension that **autonomously continues turns toward a stat
 
 Tell autopilot your goal once with `/autopilot start <objective>`. It nudges the agent to keep working toward that objective, one continuation per idle turn, until the agent emits `AUTOPILOT_COMPLETE: <summary>` or the turn cap is exhausted.
 
-A chromeless sidecar window opens automatically while a goal is armed, showing the live status, continuations fired vs. cap, elapsed time, context-window pressure, and big buttons for **Pause / Resume / Clear / Turn off** that work even mid-turn (they bypass the host's slash-command queue).
+A chromeless sidecar window opens automatically while a goal is armed, showing the live status, continuations fired vs. cap, elapsed time, context-window pressure, best-effort input/output token consumption, and big buttons for **Pause / Resume / Clear / Turn off** that work even mid-turn (they bypass the host's slash-command queue).
 
 Inspired by Codex's `/goal` feature — built as a pure Copilot CLI extension with no host-side changes.
 
@@ -108,7 +108,7 @@ See [`.github/extensions/autopilot/README.md`](./.github/extensions/autopilot/RE
 git clone https://github.com/supermem613/copilot-cli-autopilot.git
 cd copilot-cli-autopilot
 npm run check    # node --check on every .mjs
-npm test         # 4 test files, 28 assertions
+npm test         # 5 test files, 39 assertions
 ```
 
 To run your local working tree as the live extension (instead of the installed plugin), drop a one-line shim at `~/.copilot/extensions/autopilot/extension.mjs` that dynamic-imports your working tree. **Do not** point the directory itself at the working tree with a junction or symlink — Copilot CLI's extension loader does not pick those up.

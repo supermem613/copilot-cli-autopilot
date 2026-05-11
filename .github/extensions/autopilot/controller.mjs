@@ -91,6 +91,26 @@ export function createController({ session, workspacePath, log, onStateChange })
             notify();
         },
 
+        onAssistantUsage(data, timestamp) {
+            if (!state.enabled || !state.goal || state.status === "idle") return;
+            const inputTokens = tokenCount(data?.inputTokens);
+            const outputTokens = tokenCount(data?.outputTokens);
+            const cacheReadTokens = tokenCount(data?.cacheReadTokens);
+            const cacheWriteTokens = tokenCount(data?.cacheWriteTokens);
+            const reasoningTokens = tokenCount(data?.reasoningTokens);
+            if (inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens + reasoningTokens === 0) return;
+            state = {
+                ...state,
+                inputTokens: (state.inputTokens || 0) + inputTokens,
+                outputTokens: (state.outputTokens || 0) + outputTokens,
+                cacheReadTokens: (state.cacheReadTokens || 0) + cacheReadTokens,
+                cacheWriteTokens: (state.cacheWriteTokens || 0) + cacheWriteTokens,
+                reasoningTokens: (state.reasoningTokens || 0) + reasoningTokens,
+                tokenUpdatedAt: timestamp || new Date().toISOString(),
+            };
+            notify();
+        },
+
         async start(goal, opts = {}) {
             if (!state.enabled) {
                 await log("autopilot is DISABLED. Run /autopilot on to re-enable.", { level: "warning" });
@@ -276,4 +296,8 @@ export function createController({ session, workspacePath, log, onStateChange })
 
 function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
+}
+
+function tokenCount(value) {
+    return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
 }

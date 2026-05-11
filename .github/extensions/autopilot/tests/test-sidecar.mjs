@@ -96,6 +96,11 @@ async function run() {
     const viewer = await getRaw("127.0.0.1", port, "/");
     assert.equal(viewer.status, 200, "case 3: GET / returns 200");
     assert.match(viewer.body, /<title>autopilot<\/title>/, "case 3: HTML has expected title");
+    assert.match(viewer.body, /href="\/favicon\.svg"/, "case 3: HTML links favicon");
+
+    const favicon = await getRaw("127.0.0.1", port, "/favicon.svg");
+    assert.equal(favicon.status, 200, "case 3b: GET /favicon.svg returns 200");
+    assert.match(favicon.body, /<svg\b/, "case 3b: favicon is SVG");
 
     const token = sidecar.token;
     assert.ok(typeof token === "string" && token.length > 0, "token exposed");
@@ -150,7 +155,7 @@ async function run() {
     assert.equal(sidecar.isRunning, false, "case 10: disabled keeps server down");
 
     await sidecar.shutdown();
-    console.log("✓ test-sidecar: 10/10 passed");
+    console.log("✓ test-sidecar: 12/12 passed");
 }
 
 run().catch((err) => { console.error("FAIL:", err); process.exit(1); });

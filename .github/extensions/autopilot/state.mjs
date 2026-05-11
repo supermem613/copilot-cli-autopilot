@@ -31,6 +31,12 @@ export function makeDefaultState() {
         contextTokens: null,
         contextMaxTokens: null,
         contextUpdatedAt: null,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        reasoningTokens: 0,
+        tokenUpdatedAt: null,
     };
 }
 
@@ -72,6 +78,12 @@ export function arm(state, goal, hardCap = DEFAULT_HARD_CAP) {
         lastFiredAt: null,
         completedAt: null,
         completeSummary: null,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        reasoningTokens: 0,
+        tokenUpdatedAt: null,
     };
 }
 

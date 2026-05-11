@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>autopilot</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
 :root {
     --bg: #0a0e14;
@@ -21,20 +22,13 @@ html, body { height: 100%; }
 body {
     font: 14px/1.5 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
     background: var(--bg); color: var(--text);
-    padding: 16px; overflow-y: auto;
+    overflow: hidden;
 }
-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-header h1 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; flex: 1; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-.dot.live { background: var(--good); animation: pulse 2s ease-in-out infinite; }
-.dot.warn { background: var(--warn); }
-.dot.bad { background: var(--bad); }
-@keyframes pulse { 50% { opacity: 0.45; } }
+.shell { min-height: 100%; padding: 12px; }
 
 .card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; padding: 16px; box-shadow: var(--shadow);
-    margin-bottom: 12px;
+    border-radius: 10px; padding: 14px; box-shadow: var(--shadow);
 }
 .card.armed { border-left: 3px solid var(--accent); }
 .card.paused { border-left: 3px solid var(--warn); }
@@ -42,40 +36,37 @@ header h1 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter
 .card.spent { border-left: 3px solid var(--muted); }
 .card.disabled { opacity: 0.6; }
 
+.topline {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-bottom: 8px;
+}
 .status {
     font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
-    font-weight: 700; color: var(--accent); margin-bottom: 6px;
+    font-weight: 700; color: var(--accent);
 }
 .status.paused { color: var(--warn); }
 .status.complete { color: var(--good); }
 .status.spent, .status.idle, .status.disabled { color: var(--muted); }
 
 .goal {
-    font-size: 16px; font-weight: 500; margin-bottom: 12px;
+    font-size: 16px; font-weight: 650; margin-bottom: 10px;
     word-break: break-word;
 }
 .goal.empty { color: var(--muted); font-style: italic; font-weight: 400; }
 
-.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 4px; }
-.stat { }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px; }
+.stat { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.04); border-radius: 7px; padding: 8px; min-width: 0; }
 .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 2px; }
-.stat-value { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-value { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .stat-value.dim { color: var(--muted); font-size: 14px; font-weight: 400; }
-
-.bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
-.bar > div { height: 100%; background: var(--accent); transition: width 0.2s; }
-.bar.warn > div { background: var(--warn); }
-.bar.bad > div { background: var(--bad); }
+.token-line { color: var(--muted); font-size: 12px; margin-top: 1px; }
 
 .actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 4px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2px;
 }
 button {
     font: inherit; font-weight: 600;
-    padding: 14px 8px; border-radius: 6px; cursor: pointer;
+    padding: 10px 8px; border-radius: 6px; cursor: pointer;
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
     transition: background 0.1s, border-color 0.1s, transform 0.05s;
 }
@@ -89,43 +80,37 @@ button.warn:hover:not(:disabled) { background: rgba(210,153,34,0.12); border-col
 button.danger { color: var(--bad); border-color: rgba(248,81,73,0.4); }
 button.danger:hover:not(:disabled) { background: rgba(248,81,73,0.12); border-color: var(--bad); }
 button.span2 { grid-column: span 2; }
+.icon-btn {
+    width: 100%; height: 52px; padding: 0; display: grid; place-items: center;
+    font-size: 18px; line-height: 1; border-radius: 9px;
+}
 
 .complete-summary {
     background: rgba(63,185,80,0.08); border: 1px solid rgba(63,185,80,0.3);
-    border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;
+    border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
     font-size: 13px; color: var(--text);
 }
 
 .empty-state {
-    text-align: center; padding: 32px 16px; color: var(--muted);
+    text-align: center; padding: 36px 16px; color: var(--muted);
+    background: var(--surface); border: 1px dashed var(--border); border-radius: 10px;
 }
 .empty-state code {
     display: inline-block; margin-top: 8px;
     background: var(--bg); padding: 4px 8px; border-radius: 4px;
     border: 1px solid var(--border); font-size: 12px;
 }
-.footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 16px; }
 </style>
 </head>
 <body>
-<header>
-    <h1>autopilot</h1>
-    <span class="dot" id="connDot" title="WS connection"></span>
-</header>
-
+<main class="shell">
 <div id="root"></div>
-
-<div class="footer">
-    session <span id="sid">—</span>
-</div>
+</main>
 
 <script>
 const TOKEN = new URLSearchParams(location.search).get("token") || "";
-const SID = new URLSearchParams(location.search).get("sid") || "";
-document.getElementById("sid").textContent = SID.slice(0, 8) || "(unknown)";
 
 let state = null;
-let lastTickAt = null;
 
 function fmtDuration(ms) {
     if (!Number.isFinite(ms) || ms < 0) return "—";
@@ -142,6 +127,10 @@ function fmtRel(iso) {
     const ms = Date.now() - new Date(iso).getTime();
     if (ms < 5_000) return "just now";
     return fmtDuration(ms) + " ago";
+}
+
+function fmtNum(n) {
+    return Number.isFinite(n) ? n.toLocaleString() : "—";
 }
 
 function render() {
@@ -175,52 +164,57 @@ function render() {
     const elapsed = state.createdAt ? Date.now() - new Date(state.createdAt).getTime() : null;
     const fired = state.continuationsFired || 0;
     const cap = state.hardCap || 1;
-    const pct = Math.min(100, Math.round((fired / cap) * 100));
-    const barClass = pct > 80 ? "warn" : "";
-    const ctx = state.contextTokens;
-    const ctxMax = state.contextMaxTokens;
-    const ctxPct = (ctx && ctxMax) ? Math.round((ctx / ctxMax) * 100) : null;
-    const ctxBarClass = ctxPct === null ? "" : ctxPct > 90 ? "bad" : ctxPct > 75 ? "warn" : "";
+    const inputTokens = state.inputTokens || 0;
+    const outputTokens = state.outputTokens || 0;
 
     root.innerHTML = `
         <div class="card ${state.status}">
-            <div class="status ${state.status}">${state.status}${state.inFlight ? " · firing" : ""}</div>
+            <div class="topline">
+                <div class="status ${state.status}">${state.status}${state.inFlight ? " · firing" : ""}</div>
+            </div>
             <div class="goal">${escapeHtml(state.goal || "(no goal)")}</div>
             ${isComplete && state.completeSummary ? `
                 <div class="complete-summary">✓ ${escapeHtml(state.completeSummary)}</div>` : ""}
             <div class="stats">
                 <div class="stat">
-                    <div class="stat-label">Continuations</div>
+                    <div class="stat-label">Turns</div>
                     <div class="stat-value">${fired} <span class="stat-value dim">/ ${cap}</span></div>
-                    <div class="bar ${barClass}"><div style="width:${pct}%"></div></div>
                 </div>
                 <div class="stat">
                     <div class="stat-label">Elapsed</div>
                     <div class="stat-value" id="elapsed">${fmtDuration(elapsed)}</div>
-                    <div class="stat-label" style="margin-top:6px">Last fired</div>
-                    <div class="stat-value dim" id="lastFired">${fmtRel(state.lastFiredAt)}</div>
                 </div>
-                ${ctx !== null && ctx !== undefined ? `
-                <div class="stat" style="grid-column: span 2">
-                    <div class="stat-label">Context window ${ctxPct !== null ? "· " + ctxPct + "%" : ""}</div>
-                    <div class="stat-value dim">${ctx.toLocaleString()}${ctxMax ? " / " + ctxMax.toLocaleString() : ""} tokens</div>
-                    ${ctxPct !== null ? `<div class="bar ${ctxBarClass}"><div style="width:${ctxPct}%"></div></div>` : ""}
-                </div>` : ""}
+                <div class="stat">
+                    <div class="stat-label">Input tokens</div>
+                    <div class="stat-value">${fmtNum(inputTokens)}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Output tokens</div>
+                    <div class="stat-value">${fmtNum(outputTokens)}</div>
+                </div>
             </div>
             <div class="actions">
-                ${isArmed   ? `<button class="warn"   data-act="pause">Pause</button>`  : ""}
-                ${isPaused  ? `<button class="primary" data-act="resume">Resume</button>` : ""}
-                ${(isArmed || isPaused) ? `<button class="danger" data-act="clear">Clear</button>` : ""}
-                ${(isSpent || isComplete) ? `<button class="primary span2" data-act="clear">Dismiss</button>` : ""}
-                <button class="span2" data-act="off">Turn autopilot off</button>
+                ${isPaused
+                    ? `<button class="icon-btn primary" data-act="resume" title="Resume" aria-label="Resume">▶</button>`
+                    : `<button class="icon-btn warn" data-act="pause" title="Pause" aria-label="Pause" ${isArmed ? "" : "disabled"}>⏸</button>`}
+                <button class="icon-btn danger" data-act="clear" title="Stop" aria-label="Stop">⏹</button>
             </div>
         </div>`;
+    resizeToContent();
 }
 
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
     }[c]));
+}
+
+function resizeToContent() {
+    const width = 440;
+    const contentHeight = Math.ceil(document.documentElement.scrollHeight);
+    const chromeHeight = Math.max(88, window.outerHeight - window.innerHeight);
+    const height = Math.min(560, Math.max(260, contentHeight + chromeHeight + 8));
+    try { window.resizeTo(width, height); } catch {}
 }
 
 document.addEventListener("click", async (e) => {
@@ -260,7 +254,6 @@ function connect() {
     ws = new WebSocket(url);
     ws.onopen = () => {
         backoff = 250;
-        document.getElementById("connDot").className = "dot live";
     };
     ws.onmessage = (ev) => {
         try {
@@ -275,14 +268,12 @@ function connect() {
                 // stays quiet and stops hammering the dead server.
                 closing = true;
                 try { ws.close(); } catch {}
-                document.getElementById("connDot").className = "dot bad";
                 window.close();
             }
         } catch {}
     };
     ws.onclose = () => {
         if (closing) return;
-        document.getElementById("connDot").className = "dot warn";
         setTimeout(connect, backoff);
         backoff = Math.min(backoff * 2, 5000);
     };
