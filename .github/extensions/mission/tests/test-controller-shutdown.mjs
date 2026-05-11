@@ -16,7 +16,7 @@ function makeSession() {
 
 async function run() {
     for (let i = 0; i < 50; i += 1) {
-        const workspace = await mkdtemp(join(tmpdir(), "autopilot-shutdown-"));
+        const workspace = await mkdtemp(join(tmpdir(), "mission-shutdown-"));
         const controller = createController({
             session: makeSession(),
             workspacePath: workspace,

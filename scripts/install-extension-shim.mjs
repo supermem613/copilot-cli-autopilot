@@ -3,9 +3,9 @@
 // extension code from this plugin's installed location.
 //
 // Pattern adapted from DamianEdwards/copilot-cli-cost. After the user runs
-// `copilot plugin install supermem613/copilot-cli-autopilot`, this script
+// `copilot plugin install supermem613/copilot-cli-mission`, this script
 // finds the installed plugin directory under ~/.copilot/installed-plugins
-// and writes a tiny delegate at ~/.copilot/extensions/autopilot/extension.mjs
+// and writes a tiny delegate at ~/.copilot/extensions/mission/extension.mjs
 // that imports the real extension from the plugin install location.
 
 import fs from "node:fs";
@@ -13,11 +13,13 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const extensionName = "autopilot";
+const extensionName = "mission";
+const legacyExtensionName = "autopilot";
 const extensionRelativePath = path.join(".github", "extensions", extensionName, "extension.mjs");
 
 try {
     const sourceExtension = findInstalledExtension();
+    removeLegacyShim(sourceExtension);
     const targetDirectory = path.join(os.homedir(), ".copilot", "extensions", extensionName);
     const targetExtension = path.join(targetDirectory, "extension.mjs");
     const content = `import { pathToFileURL } from "node:url";\n\nawait import(pathToFileURL(${JSON.stringify(sourceExtension)}).href);\n`;
@@ -35,17 +37,17 @@ try {
     if (fs.existsSync(targetExtension)) {
         const existing = fs.readFileSync(targetExtension, "utf8");
         if (existing === content) {
-            console.log(`autopilot extension shim is already installed at ${targetExtension}`);
+            console.log(`mission extension shim is already installed at ${targetExtension}`);
             process.exit(0);
         }
         if (!existing.includes(extensionName)) {
-            throw new Error(`Refusing to overwrite existing non-autopilot extension at ${targetExtension}`);
+            throw new Error(`Refusing to overwrite existing non-mission extension at ${targetExtension}`);
         }
     }
 
     fs.mkdirSync(targetDirectory, { recursive: true });
     fs.writeFileSync(targetExtension, content);
-    console.log(`Installed autopilot extension shim at ${targetExtension}`);
+    console.log(`Installed mission extension shim at ${targetExtension}`);
     console.log(`Shim imports ${pathToFileURL(sourceExtension).href}`);
 } catch (error) {
     console.error(`install-extension-shim: ${error.message}`);
@@ -60,12 +62,23 @@ function findInstalledExtension() {
     if (matches.length === 0) {
         throw new Error(
             `Could not find ${extensionRelativePath} under ${installedPluginsDirectory}. ` +
-            `Install the plugin first: copilot plugin install supermem613/copilot-cli-autopilot`,
+            `Install the plugin first: copilot plugin install supermem613/copilot-cli-mission`,
         );
     }
 
-    matches.sort();
+    matches.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
     return matches[0];
+}
+
+function removeLegacyShim(sourceExtension) {
+    const targetDirectory = path.join(os.homedir(), ".copilot", "extensions", legacyExtensionName);
+    const targetExtension = path.join(targetDirectory, "extension.mjs");
+    if (!fs.existsSync(targetExtension)) return;
+    const existing = fs.readFileSync(targetExtension, "utf8");
+    if (!existing.includes("copilot-cli-autopilot") && !existing.includes(".github\\\\extensions\\\\autopilot")) return;
+    fs.rmSync(targetDirectory, { recursive: true, force: true });
+    console.log(`Removed legacy ${legacyExtensionName} extension shim at ${targetDirectory}`);
+    console.log(`Using ${extensionName} shim for ${pathToFileURL(sourceExtension).href}`);
 }
 
 function findFiles(directory, fileName) {

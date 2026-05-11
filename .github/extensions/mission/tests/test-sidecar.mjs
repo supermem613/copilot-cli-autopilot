@@ -95,7 +95,7 @@ async function run() {
     // Case 3: GET / serves viewer HTML.
     const viewer = await getRaw("127.0.0.1", port, "/");
     assert.equal(viewer.status, 200, "case 3: GET / returns 200");
-    assert.match(viewer.body, /<title>autopilot<\/title>/, "case 3: HTML has expected title");
+    assert.match(viewer.body, /<title>mission<\/title>/, "case 3: HTML has expected title");
     assert.match(viewer.body, /href="\/favicon\.svg"/, "case 3: HTML links favicon");
 
     const favicon = await getRaw("127.0.0.1", port, "/favicon.svg");

@@ -1,5 +1,5 @@
 // Sidecar: per-session HTTP+WS server that drives a chromeless browser window
-// for autopilot. Lifecycle bound to status: visible iff status !== "idle".
+// for mission. Lifecycle bound to status: visible iff status !== "idle".
 //
 // Design: simpler than backlog's multi-session owner-election model. Each
 // Copilot session spawns its own extension process, so each gets its own
@@ -27,7 +27,7 @@ const FAVICON_SVG = readFileSync(join(__dirname, "favicon.svg"));
 
 // Match session.workspacePath profile dir, separate from backlog's so
 // browser cookies/history don't collide.
-const VIEWER_PROFILE_DIR = join(homedir(), ".copilot", "autopilot-viewer-profile");
+const VIEWER_PROFILE_DIR = join(homedir(), ".copilot", "mission-viewer-profile");
 
 export function createSidecar({ controller, sessionId, log, noLaunch = false }) {
     const token = randomBytes(16).toString("hex");
@@ -54,7 +54,7 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
     }
 
     // Lifecycle: visible iff status is not "idle". When status returns to
-    // "idle" (cleared) AND autopilot is enabled, hide. When disabled, hide.
+    // "idle" (cleared) AND mission is enabled, hide. When disabled, hide.
     // Serialized so concurrent state notifications can't race ensureRunning/stop.
     function syncVisibility(state) {
         return withLifecycleLock(async () => {
@@ -167,10 +167,10 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
                 case "off":    await controller.turnOff(); break;
                 case "on":     await controller.turnOn(); break;
                 default:
-                    await log(`autopilot sidecar: unknown action "${action}"`, { level: "warning" });
+                    await log(`mission sidecar: unknown action "${action}"`, { level: "warning" });
             }
         } catch (err) {
-            await log(`autopilot sidecar: action "${action}" failed: ${err?.message ?? err}`,
+            await log(`mission sidecar: action "${action}" failed: ${err?.message ?? err}`,
                 { level: "error" });
         }
     }
@@ -217,7 +217,7 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
             return true;
         }
         // Last resort: log the URL so the user can open it manually.
-        log(`autopilot sidecar: open this URL manually: ${url}`, { level: "warning" }).catch(() => {});
+        log(`mission sidecar: open this URL manually: ${url}`, { level: "warning" }).catch(() => {});
         return false;
     }
 

@@ -1,12 +1,12 @@
 {
-  "name": "copilot-cli-autopilot",
+  "name": "copilot-cli-mission",
   "version": "0.1.2",
   "private": true,
   "description": "GitHub Copilot CLI extension that autonomously continues turns toward a stated objective with a live sidecar viewer.",
   "type": "module",
   "scripts": {
-    "test": "node .github/extensions/autopilot/tests/test-cap-parsing.mjs && node .github/extensions/autopilot/tests/test-persistence.mjs && node .github/extensions/autopilot/tests/test-usage.mjs && node .github/extensions/autopilot/tests/test-controller-shutdown.mjs && node .github/extensions/autopilot/tests/test-sidecar.mjs && node .github/extensions/autopilot/tests/test-sidecar-race.mjs",
-    "check": "node --check .github/extensions/autopilot/extension.mjs && node --check .github/extensions/autopilot/controller.mjs && node --check .github/extensions/autopilot/commands.mjs && node --check .github/extensions/autopilot/state.mjs && node --check .github/extensions/autopilot/persistence.mjs && node --check .github/extensions/autopilot/prompt.mjs && node --check .github/extensions/autopilot/sidecar.mjs && node --check scripts/install-extension-shim.mjs"
+    "test": "node .github/extensions/mission/tests/test-cap-parsing.mjs && node .github/extensions/mission/tests/test-persistence.mjs && node .github/extensions/mission/tests/test-prompt.mjs && node .github/extensions/mission/tests/test-usage.mjs && node .github/extensions/mission/tests/test-controller-shutdown.mjs && node .github/extensions/mission/tests/test-sidecar.mjs && node .github/extensions/mission/tests/test-sidecar-race.mjs",
+    "check": "node --check .github/extensions/mission/extension.mjs && node --check .github/extensions/mission/controller.mjs && node --check .github/extensions/mission/commands.mjs && node --check .github/extensions/mission/state.mjs && node --check .github/extensions/mission/persistence.mjs && node --check .github/extensions/mission/prompt.mjs && node --check .github/extensions/mission/sidecar.mjs && node --check scripts/install-extension-shim.mjs"
   },
   "engines": {
     "node": ">=24.0.0"
@@ -14,6 +14,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/supermem613/copilot-cli-autopilot.git"
+    "url": "https://github.com/supermem613/copilot-cli-mission.git"
   }
 }

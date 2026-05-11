@@ -1,5 +1,5 @@
 {
-  "name": "copilot-cli-autopilot",
+  "name": "copilot-cli-mission",
   "description": "Autonomous turn continuation toward a stated objective for GitHub Copilot CLI, with a live sidecar viewer.",
   "version": "0.1.1",
   "author": {
@@ -9,7 +9,7 @@
   "keywords": [
     "copilot",
     "copilot-cli",
-    "autopilot",
+    "mission",
     "autonomous",
     "agent",
     "continuation"

@@ -1,16 +1,16 @@
-// Extension: autopilot
+// Extension: mission
 // Autonomous turn continuation toward a stated objective. Walking skeleton.
 //
 // Modules:
 //   state.mjs       — pure state machine (no I/O)
-//   prompt.mjs      — continuation prompt + AUTOPILOT_COMPLETE detection
-//   persistence.mjs — autopilot.json load/save in session workspace
+//   prompt.mjs      — continuation prompt + MISSION_COMPLETE detection
+//   persistence.mjs — mission.json load/save in session workspace
 //   controller.mjs  — orchestrates lifecycle, owns mutations
 //   commands.mjs    — slash command parser
 //   extension.mjs   — this file: SDK wiring only
 //
 // Design notes:
-//   - State is durable in <workspacePath>/autopilot.json. Survives /clear and
+//   - State is durable in <workspacePath>/mission.json. Survives /clear and
 //     session resume. Requires infinite sessions (we fail loud otherwise).
 //   - All mutations go through the controller so persistence stays consistent.
 //   - session.idle.aborted is honored — if the user pressed Ctrl-C, we don't
@@ -19,7 +19,7 @@
 
 import { joinSession } from "@github/copilot-sdk/extension";
 import { createController } from "./controller.mjs";
-import { makeAutopilotCommand } from "./commands.mjs";
+import { makeMissionCommand } from "./commands.mjs";
 import { WorkspaceUnavailable } from "./persistence.mjs";
 import { createSidecar } from "./sidecar.mjs";
 
@@ -29,8 +29,8 @@ import { createSidecar } from "./sidecar.mjs";
 // and populating it after joinSession resolves.
 const controllerRef = { get: () => controllerRef.value, value: null };
 
-let logFn = (msg) => console.error("[autopilot pre-init]", msg);
-const cmd = makeAutopilotCommand(controllerRef, (m, o) => logFn(m, o));
+let logFn = (msg) => console.error("[mission pre-init]", msg);
+const cmd = makeMissionCommand(controllerRef, (m, o) => logFn(m, o));
 
 const session = await joinSession({ commands: [cmd] });
 logFn = (m, o) => session.log(m, o);
@@ -40,7 +40,7 @@ if (!session.workspacePath) {
     // and an "armed" objective could silently vanish. Fail loud rather than
     // pretend to work.
     const err = new WorkspaceUnavailable();
-    await logFn(`autopilot: ${err.message}`, { level: "error" });
+    await logFn(`mission: ${err.message}`, { level: "error" });
     throw err;
 }
 
@@ -68,7 +68,7 @@ const controller = createController({
     log: logFn,
     onStateChange: (state) => {
         sidecar.syncVisibility(state).catch((err) =>
-            logFn(`autopilot: sidecar sync failed: ${err?.message ?? err}`, { level: "warning" }),
+            logFn(`mission: sidecar sync failed: ${err?.message ?? err}`, { level: "warning" }),
         );
     },
 });
@@ -79,23 +79,23 @@ session.on("session.idle", (event) => {
     // Ignore sub-agent idle events — only the main session's idleness matters.
     if (event.agentId) return;
     controller.onIdle(event.data).catch((err) =>
-        logFn(`autopilot: onIdle failed: ${err?.message ?? err}`, { level: "error" }),
+        logFn(`mission: onIdle failed: ${err?.message ?? err}`, { level: "error" }),
     );
 });
 
 session.on("session.mode_changed", (event) => {
     if (event.agentId) return;
     controller.onModeChanged(event.data).catch((err) =>
-        logFn(`autopilot: onModeChanged failed: ${err?.message ?? err}`, { level: "error" }),
+        logFn(`mission: onModeChanged failed: ${err?.message ?? err}`, { level: "error" }),
     );
 });
 
 session.on("assistant.message", (event) => {
-    // Sub-agent messages must not trigger AUTOPILOT_COMPLETE detection.
+    // Sub-agent messages must not trigger MISSION_COMPLETE detection.
     // Sub-agents may emit the token while quoting the prompt.
     if (event.agentId) return;
     controller.onAssistantMessage(event.data).catch((err) =>
-        logFn(`autopilot: onAssistantMessage failed: ${err?.message ?? err}`, { level: "error" }),
+        logFn(`mission: onAssistantMessage failed: ${err?.message ?? err}`, { level: "error" }),
     );
 });
 
@@ -116,4 +116,4 @@ session.on?.("session.end", () => {
     sidecar.shutdown().catch(() => {});
 });
 
-await logFn(`autopilot ready: ${controller.summary()}`, { ephemeral: true });
+await logFn(`mission ready: ${controller.summary()}`, { ephemeral: true });

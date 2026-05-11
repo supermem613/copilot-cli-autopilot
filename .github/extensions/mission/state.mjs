@@ -8,8 +8,8 @@ export const DEFAULT_HARD_CAP = 20;
 //   idle      — no objective armed
 //   armed     — objective active, continuations will fire on session.idle
 //   paused    — objective active, continuations suppressed until resume
-//   spent     — turn cap exhausted; needs new /autopilot start to re-arm
-//   complete  — agent emitted AUTOPILOT_COMPLETE: terminator
+//   spent     — turn cap exhausted; needs new /mission start to re-arm
+//   complete  — agent emitted MISSION_COMPLETE: terminator
 export const STATUSES = ["idle", "armed", "paused", "spent", "complete"];
 
 export function makeDefaultState() {
@@ -157,14 +157,14 @@ export function shouldFire(state, idleData) {
     return { fire: true, reason: "armed and ready" };
 }
 
-// Format a one-line summary for /autopilot show and the spike status command.
+// Format a one-line summary for /mission show and the spike status command.
 export function summarize(state) {
-    if (!state.enabled) return "autopilot DISABLED (/autopilot on to re-enable)";
-    if (state.status === "idle") return "autopilot idle (no objective)";
+    if (!state.enabled) return "mission DISABLED (/mission on to re-enable)";
+    if (state.status === "idle") return "mission idle (no objective)";
     if (state.status === "complete") {
-        return `autopilot COMPLETE: ${state.completeSummary ?? "(no summary)"} ` +
+        return `mission COMPLETE: ${state.completeSummary ?? "(no summary)"} ` +
             `[fired ${state.continuationsFired}/${state.hardCap}]`;
     }
-    return `autopilot ${state.status.toUpperCase()}: "${state.goal}" ` +
+    return `mission ${state.status.toUpperCase()}: "${state.goal}" ` +
         `[${state.continuationsFired}/${state.hardCap} fired, ${state.remainingTurns} remaining]`;
 }

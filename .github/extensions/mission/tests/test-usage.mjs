@@ -16,7 +16,7 @@ function makeSession() {
 }
 
 async function run() {
-    const workspace = await mkdtemp(join(tmpdir(), "autopilot-usage-"));
+    const workspace = await mkdtemp(join(tmpdir(), "mission-usage-"));
     const logs = [];
     const states = [];
     const session = makeSession();

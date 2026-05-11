@@ -7,7 +7,7 @@
 //   - All session.send() calls are deferred via setTimeout(0) to avoid reentrancy
 //     with the idle event that triggered them.
 //   - The grace window between "idle observed" and "send fired" gives the user
-//     a chance to cancel via /autopilot off|pause|clear without burning a turn.
+//     a chance to cancel via /mission off|pause|clear without burning a turn.
 
 import {
     arm, pause, resume, clear, disable, enable,
@@ -84,7 +84,7 @@ export function createController({ session, workspacePath, log, onStateChange })
     function notify() {
         if (!onStateChange) return;
         Promise.resolve().then(() => onStateChange({ ...state })).catch((err) => {
-            log(`autopilot: state notify failed: ${err?.message ?? err}`, { level: "warning" })
+            log(`mission: state notify failed: ${err?.message ?? err}`, { level: "warning" })
                 .catch(() => {});
         });
     }
@@ -98,7 +98,7 @@ export function createController({ session, workspacePath, log, onStateChange })
             await persist();
         } catch (err) {
             state = prevState;
-            await log(`autopilot: ${label} failed (disk write): ${err?.message ?? err}. Reverted.`,
+            await log(`mission: ${label} failed (disk write): ${err?.message ?? err}. Reverted.`,
                 { level: "error" });
             notify();
             throw err;
@@ -110,7 +110,7 @@ export function createController({ session, workspacePath, log, onStateChange })
         async init() {
             state = await loadState(workspacePath);
             await log(
-                `autopilot loaded: ${summarize(state)} (workspace: ${workspacePath})`,
+                `mission loaded: ${summarize(state)} (workspace: ${workspacePath})`,
                 { ephemeral: true },
             );
             notify();
@@ -168,7 +168,7 @@ export function createController({ session, workspacePath, log, onStateChange })
 
         async start(goal, opts = {}) {
             if (!state.enabled) {
-                await log("autopilot is DISABLED. Run /autopilot on to re-enable.", { level: "warning" });
+                await log("mission is DISABLED. Run /mission on to re-enable.", { level: "warning" });
                 return;
             }
             const wasActive = state.status === "armed" || state.status === "paused";
@@ -177,23 +177,23 @@ export function createController({ session, workspacePath, log, onStateChange })
             // where /goal silently replaces the active objective.
             if (wasActive && session.capabilities?.ui?.elicitation) {
                 const ok = await session.ui.confirm(
-                    `Replace current autopilot objective?\n` +
+                    `Replace current mission objective?\n` +
                     `  current: "${state.goal}" (${state.continuationsFired}/${state.hardCap} fired)\n` +
                     `  new:     "${goal}"`
                 );
                 if (!ok) {
-                    await log("autopilot: replacement declined; keeping current objective");
+                    await log("mission: replacement declined; keeping current objective");
                     return;
                 }
             } else if (wasActive) {
-                await log(`autopilot: replacing active objective "${state.goal}"`, { level: "warning" });
+                await log(`mission: replacing active objective "${state.goal}"`, { level: "warning" });
             }
             const prev = state;
             const cap = Number.isInteger(opts.hardCap) && opts.hardCap > 0 ? opts.hardCap : prev.hardCap;
             await commit(prev, arm(state, goal, cap), "start");
             await log(
-                `autopilot ARMED: "${goal}" [cap=${state.hardCap}, grace=${GRACE_MS}ms]. ` +
-                `Will fire on next idle. /autopilot pause|off to stop.`,
+                `mission ARMED: "${goal}" [cap=${state.hardCap}, grace=${GRACE_MS}ms]. ` +
+                `Will fire on next idle. /mission pause|off to stop.`,
             );
             // Kick off immediately — slash commands don't trigger session.idle on
             // their own, so without this the user would have to send a separate
@@ -203,53 +203,53 @@ export function createController({ session, workspacePath, log, onStateChange })
             // is logged before the "idle observed" banner.
             scheduleKickoff(() =>
                 this.onIdle({ aborted: false }).catch((err) =>
-                    log(`autopilot: kickoff failed: ${err?.message ?? err}`, { level: "error" }),
+                    log(`mission: kickoff failed: ${err?.message ?? err}`, { level: "error" }),
                 )
             );
         },
 
         async pause() {
             if (state.status !== "armed") {
-                await log(`autopilot: cannot pause from status=${state.status}`, { level: "warning" });
+                await log(`mission: cannot pause from status=${state.status}`, { level: "warning" });
                 return;
             }
             const prev = state;
             await commit(prev, pause(state), "pause");
-            await log(`autopilot PAUSED: "${state.goal}". /autopilot resume to continue.`);
+            await log(`mission PAUSED: "${state.goal}". /mission resume to continue.`);
         },
 
         async resume() {
             if (state.status !== "paused") {
-                await log(`autopilot: cannot resume from status=${state.status}`, { level: "warning" });
+                await log(`mission: cannot resume from status=${state.status}`, { level: "warning" });
                 return;
             }
             const prev = state;
             await commit(prev, resume(state), "resume");
-            await log(`autopilot RESUMED: "${state.goal}". Will fire on next idle.`);
+            await log(`mission RESUMED: "${state.goal}". Will fire on next idle.`);
         },
 
         async clearObjective() {
             const was = summarize(state);
             const prev = state;
             await commit(prev, clear(state), "clear");
-            await log(`autopilot cleared (was: ${was})`);
+            await log(`mission cleared (was: ${was})`);
         },
 
         async turnOff() {
             const was = summarize(state);
             const prev = state;
             await commit(prev, disable(state), "off");
-            await log(`autopilot OFF (durable). Was: ${was}. /autopilot on to re-enable.`);
+            await log(`mission OFF (durable). Was: ${was}. /mission on to re-enable.`);
         },
 
         async turnOn() {
             if (state.enabled) {
-                await log("autopilot is already enabled");
+                await log("mission is already enabled");
                 return;
             }
             const prev = state;
             await commit(prev, enable(state), "on");
-            await log("autopilot ON. No objective armed. /autopilot start <text> to begin.");
+            await log("mission ON. No objective armed. /mission start <text> to begin.");
         },
 
         async show() { await log(summarize(state)); },
@@ -262,12 +262,12 @@ export function createController({ session, workspacePath, log, onStateChange })
                 const prev = state;
                 await commit(prev, pause(state), "auto-pause for plan mode");
                 await log(
-                    `autopilot auto-paused for plan mode. /autopilot resume when ready.`,
+                    `mission auto-paused for plan mode. /mission resume when ready.`,
                 );
             }
         },
 
-        // Termination detection: when the agent emits AUTOPILOT_COMPLETE, mark
+        // Termination detection: when the agent emits MISSION_COMPLETE, mark
         // complete so the next idle event won't fire another continuation.
         async onAssistantMessage(data) {
             if (state.status !== "armed") return;
@@ -275,14 +275,14 @@ export function createController({ session, workspacePath, log, onStateChange })
             if (!summary) return;
             const prev = state;
             await commit(prev, markComplete(state, summary), "mark complete");
-            await log(`autopilot COMPLETE: ${summary}`);
+            await log(`mission COMPLETE: ${summary}`);
         },
 
         async onIdle(data) {
             if (shuttingDown) return;
             const decision = shouldFire(state, data);
             if (!decision.fire) {
-                // Surface the spent transition so /autopilot show is accurate.
+                // Surface the spent transition so /mission show is accurate.
                 if (state.status === "armed" && state.remainingTurns <= 0) {
                     const prev = state;
                     try {
@@ -292,7 +292,7 @@ export function createController({ session, workspacePath, log, onStateChange })
                 return;
             }
             // Capture identity for staleness detection (Shadow review #2).
-            // If the user runs /autopilot start with a new goal during grace,
+            // If the user runs /mission start with a new goal during grace,
             // state.goal will differ — we must NOT send the stale prompt.
             const capturedGoal = state.goal;
             // Tentative reservation: only mark inFlight here. Budget is
@@ -304,8 +304,8 @@ export function createController({ session, workspacePath, log, onStateChange })
             } catch { return; /* persistence failed; abort fire */ }
 
             await log(
-                `autopilot: idle observed; grace=${GRACE_MS}ms before firing toward "${capturedGoal}". ` +
-                `Cancel via /autopilot pause|off|clear.`,
+                `mission: idle observed; grace=${GRACE_MS}ms before firing toward "${capturedGoal}". ` +
+                `Cancel via /mission pause|off|clear.`,
             );
             const graceElapsed = await sleep(GRACE_MS, shutdownController.signal);
             if (!graceElapsed) {
@@ -324,7 +324,7 @@ export function createController({ session, workspacePath, log, onStateChange })
                     await commit(prev2, { ...state, inFlight: false }, "release reservation");
                 } catch { /* swallowed via commit */ }
                 await log(
-                    `autopilot: cancelled during grace ` +
+                    `mission: cancelled during grace ` +
                     `(status=${state.status}, enabled=${state.enabled}, goalChanged=${state.goal !== capturedGoal})`,
                 );
                 return;
@@ -345,7 +345,7 @@ export function createController({ session, workspacePath, log, onStateChange })
                         prompt: buildContinuationPrompt(goal, fired, cap),
                     });
                 } catch (err) {
-                    await log(`autopilot: send failed: ${err?.message ?? err}`, { level: "error" });
+                    await log(`mission: send failed: ${err?.message ?? err}`, { level: "error" });
                 } finally {
                     const prev4 = state;
                     try {

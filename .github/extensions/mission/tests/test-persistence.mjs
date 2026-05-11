@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { loadState, saveState } from "../persistence.mjs";
 
 async function run() {
-    const workspace = await fs.mkdtemp(join(tmpdir(), "autopilot-test-"));
+    const workspace = await fs.mkdtemp(join(tmpdir(), "mission-test-"));
 
     // Save a state with volatile fields populated.
     const stateWithVolatile = {
@@ -37,7 +37,7 @@ async function run() {
     await saveState(workspace, stateWithVolatile);
 
     // Read raw file — volatile fields must not appear.
-    const raw = await fs.readFile(join(workspace, "autopilot.json"), "utf8");
+    const raw = await fs.readFile(join(workspace, "mission.json"), "utf8");
     const parsed = JSON.parse(raw);
     assert.equal(parsed.contextTokens, undefined, "contextTokens must not be persisted");
     assert.equal(parsed.contextMaxTokens, undefined, "contextMaxTokens must not be persisted");
@@ -61,7 +61,7 @@ async function run() {
     // Even if a malformed save has volatile fields written (older version),
     // loadState must scrub them.
     await fs.writeFile(
-        join(workspace, "autopilot.json"),
+        join(workspace, "mission.json"),
         JSON.stringify({ ...stateWithVolatile, contextTokens: 999, inputTokens: 999 }),
         "utf8",
     );
@@ -69,8 +69,15 @@ async function run() {
     assert.equal(loaded2.contextTokens, null, "load scrubs volatile fields from disk");
     assert.equal(loaded2.inputTokens, 0, "load scrubs token counters from disk");
 
+    await fs.rm(join(workspace, "mission.json"), { force: true });
+    await fs.writeFile(join(workspace, "autopilot.json"), JSON.stringify(stateWithVolatile), "utf8");
+    const migrated = await loadState(workspace);
+    assert.equal(migrated.goal, "test", "legacy autopilot.json migrates");
+    await assert.doesNotReject(() => fs.access(join(workspace, "mission.json")), "migration writes mission.json");
+    await assert.rejects(() => fs.access(join(workspace, "autopilot.json")), "migration removes autopilot.json");
+
     await fs.rm(workspace, { recursive: true, force: true });
-    console.log("✓ test-persistence: 13/13 passed");
+    console.log("✓ test-persistence: 16/16 passed");
 }
 
 run().catch((err) => { console.error("FAIL:", err); process.exit(1); });

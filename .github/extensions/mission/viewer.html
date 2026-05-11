@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>autopilot</title>
+<title>mission</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
 :root {
@@ -143,7 +143,7 @@ function render() {
         root.innerHTML = `
             <div class="card disabled">
                 <div class="status disabled">Disabled</div>
-                <div class="goal empty">autopilot is off</div>
+                <div class="goal empty">mission is off</div>
                 <div class="actions"><button class="primary span2" data-act="on">Re-enable</button></div>
             </div>`;
         return;
@@ -152,7 +152,7 @@ function render() {
         root.innerHTML = `
             <div class="empty-state">
                 No active objective.<br>
-                <code>/autopilot start &lt;objective&gt;</code>
+                <code>/mission start &lt;objective&gt;</code>
             </div>`;
         return;
     }
