@@ -8,7 +8,8 @@ export const SCHEMA_VERSION = 1;
 //   armed     — objective active, continuations will fire on session.idle
 //   paused    — objective active, continuations suppressed until resume
 //   complete  — agent emitted MISSION_COMPLETE: terminator
-export const STATUSES = ["idle", "armed", "paused", "complete"];
+//   blocked   — agent emitted MISSION_BLOCKED: terminal user-intervention state
+export const STATUSES = ["idle", "armed", "paused", "complete", "blocked"];
 
 export function makeDefaultState() {
     return {
@@ -22,6 +23,8 @@ export function makeDefaultState() {
         lastFiredAt: null,
         completedAt: null,
         completeSummary: null,
+        blockedAt: null,
+        blockedSummary: null,
         // Coarse context-window tracking. Updated on session.usage_info events.
         // currentTokens is what the SDK calls "context window state" (not spend).
         contextTokens: null,
@@ -86,6 +89,8 @@ export function arm(state, goal) {
         lastFiredAt: null,
         completedAt: null,
         completeSummary: null,
+        blockedAt: null,
+        blockedSummary: null,
         inputTokens: 0,
         outputTokens: 0,
         cacheReadTokens: 0,
@@ -101,7 +106,7 @@ export function pause(state) {
 }
 
 export function resume(state) {
-    if (state.status !== "paused") return state;
+    if (state.status !== "paused" && state.status !== "blocked") return state;
     return { ...state, status: "armed" };
 }
 
@@ -115,6 +120,8 @@ export function clear(state) {
         lastFiredAt: null,
         completedAt: null,
         completeSummary: null,
+        blockedAt: null,
+        blockedSummary: null,
     };
 }
 
@@ -149,6 +156,16 @@ export function markComplete(state, summary) {
     };
 }
 
+export function markBlocked(state, summary) {
+    return {
+        ...state,
+        status: "blocked",
+        inFlight: false,
+        blockedAt: new Date().toISOString(),
+        blockedSummary: summary,
+    };
+}
+
 // Decision predicate. Pure: given the current state and an idle event payload,
 // should the controller fire a continuation right now?
 // Returns { fire: boolean, reason: string } so the controller can log either way.
@@ -166,6 +183,10 @@ export function summarize(state) {
     if (state.status === "idle") return "mission idle (no objective)";
     if (state.status === "complete") {
         return `mission COMPLETE: ${state.completeSummary ?? "(no summary)"} ` +
+            `[${state.continuationsFired} turns]`;
+    }
+    if (state.status === "blocked") {
+        return `mission BLOCKED: ${state.blockedSummary ?? "(no reason)"} ` +
             `[${state.continuationsFired} turns]`;
     }
     return `mission ${state.status.toUpperCase()}: "${state.goal}" ` +

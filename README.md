@@ -2,13 +2,13 @@
 
 A GitHub Copilot CLI extension that **autonomously continues turns toward a stated objective**, with a live sidecar viewer for status and one-click control.
 
-Tell mission your goal once with `/mission <objective>`. It nudges the agent to keep working toward that objective, one continuation per idle turn, until the agent emits `MISSION_COMPLETE: <summary>`.
+Tell mission your goal once with `/mission <objective>`. It nudges the agent to keep working toward that objective, one continuation per idle turn, until the agent emits `MISSION_COMPLETE: <summary>` or `MISSION_BLOCKED: <reason>`.
 
 A chromeless sidecar window opens automatically while a goal is armed, showing live status, turns, elapsed time, best-effort input/output token consumption, and large icon controls that work even mid-turn.
 
-| Start from the sidecar | Track a running mission | Resume when paused |
-| --- | --- | --- |
-| ![Mission idle sidecar with objective text box and Start mission button](./.github/extensions/mission/docs/mission-sidecar-idle.png) | ![Mission active sidecar showing status, turn count, token panels, and pause/clear controls](./.github/extensions/mission/docs/mission-sidecar-active.png) | ![Mission paused sidecar showing resume and clear controls](./.github/extensions/mission/docs/mission-sidecar-paused.png) |
+| Start from the sidecar | Track a running mission | Resume when paused | Recover when blocked |
+| --- | --- | --- | --- |
+| ![Mission idle sidecar with objective text box and Start mission button](./.github/extensions/mission/docs/mission-sidecar-idle.png) | ![Mission active sidecar showing status, turn count, token panels, and pause/clear controls](./.github/extensions/mission/docs/mission-sidecar-active.png) | ![Mission paused sidecar showing resume and clear controls](./.github/extensions/mission/docs/mission-sidecar-paused.png) | ![Mission blocked sidecar showing blocked reason and resume control](./.github/extensions/mission/docs/mission-sidecar-blocked.png) |
 
 Inspired by Codex's `/goal` feature — built as a pure Copilot CLI extension with no host-side changes.
 
@@ -86,13 +86,13 @@ Enable `mission` under **User**. Then run `/mission help` to confirm.
 /mission refactor src/foo.ts to remove the global mutex
 /mission
 /mission pause
-/mission resume
+/mission resume         # also retries a blocked mission
 /mission clear
 /mission off            # durable disable
 /mission on
 ```
 
-`/mission` prints the current status and opens the sidecar UX with the latest snapshot, even when there is no active objective. `/mission resume` also opens the sidecar after resuming.
+`/mission` prints the current status and opens the sidecar UX with the latest snapshot, even when there is no active objective. `/mission resume` also opens the sidecar after resuming or retrying a blocked mission.
 When idle, the sidecar includes an objective text box and **Start mission** button so you can start from the UX.
 
 The agent works one turn, becomes idle, mission waits ~1.5s (grace window — your chance to cancel), then injects a continuation prompt visible in the timeline:
@@ -101,12 +101,14 @@ The agent works one turn, becomes idle, mission waits ~1.5s (grace window — yo
 [mission turn 1] Continue toward: "refactor src/foo.ts to remove the global mutex"
 When the objective is fully met, end your reply with a line:
 MISSION_COMPLETE: <one-sentence summary>
+If there is no viable next step without user input, end with:
+MISSION_BLOCKED: <what is blocking progress>
 Otherwise take the next concrete step.
 ```
 
-When the agent finishes, it emits the `MISSION_COMPLETE:` line and mission stops automatically.
+When the agent finishes, it emits the `MISSION_COMPLETE:` line and mission stops automatically. If it cannot make meaningful progress without user input, it emits `MISSION_BLOCKED:` and mission stops in a blocked state instead of spending another turn.
 
-The sidecar window (chromeless `msedge --app=` on Windows; falls back to default browser elsewhere) opens whenever a goal starts or resumes. Click **Pause / Resume** or **Clear** any time — the buttons hit a localhost HTTP endpoint that bypasses the host's slash-command queue, so they work *during* an in-flight LLM turn.
+The sidecar window (chromeless `msedge --app=` on Windows; falls back to default browser elsewhere) opens whenever a goal starts, resumes, or becomes blocked. Click **Pause / Resume / Retry** or **Clear** any time — the buttons hit a localhost HTTP endpoint that bypasses the host's slash-command queue, so they work *during* an in-flight LLM turn.
 
 See [`.github/extensions/mission/README.md`](./.github/extensions/mission/README.md) for the full command reference, safety/kill-switches, non-goals, and architecture notes.
 

@@ -13,7 +13,7 @@ const HELP = [
     "  /mission <objective>  arm a new objective",
     "  /mission              print status and open the sidecar UX",
     "  /mission pause        suppress continuations (keeps objective)",
-    "  /mission resume       un-pause and open the sidecar UX",
+    "  /mission resume       un-pause or retry a blocked mission",
     "  /mission clear        clear objective (returns to idle)",
     "  /mission off          durable disable (persists across sessions)",
     "  /mission on           re-enable after off",

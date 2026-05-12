@@ -11,11 +11,11 @@
 
 import {
     arm, pause, resume, clear, disable, enable,
-    markFiring, markFireSettled, markComplete,
+    markFiring, markFireSettled, markComplete, markBlocked,
     shouldFire, summarize,
 } from "./state.mjs";
 import { loadState, saveState } from "./persistence.mjs";
-import { buildContinuationPrompt, detectComplete } from "./prompt.mjs";
+import { buildContinuationPrompt, detectBlocked, detectComplete } from "./prompt.mjs";
 
 export const GRACE_MS = 1500;
 
@@ -231,7 +231,7 @@ export function createController({ session, workspacePath, log, onStateChange, o
         },
 
         async resume() {
-            if (state.status !== "paused") {
+            if (state.status !== "paused" && state.status !== "blocked") {
                 await log(`mission: cannot resume from status=${state.status}`, { level: "warning" });
                 return;
             }
@@ -292,15 +292,23 @@ export function createController({ session, workspacePath, log, onStateChange, o
             }
         },
 
-        // Termination detection: when the agent emits MISSION_COMPLETE, mark
-        // complete so the next idle event won't fire another continuation.
+        // Termination detection: complete and blocked are both terminal. The
+        // blocked path prevents spend loops when the agent knows it cannot
+        // make meaningful progress without user input.
         async onAssistantMessage(data) {
             if (state.status !== "armed") return;
             const summary = detectComplete(data?.content);
-            if (!summary) return;
+            if (summary) {
+                const prev = state;
+                await commit(prev, markComplete(state, summary), "mark complete");
+                await log(`mission COMPLETE: ${summary}`);
+                return;
+            }
+            const blockedSummary = detectBlocked(data?.content);
+            if (!blockedSummary) return;
             const prev = state;
-            await commit(prev, markComplete(state, summary), "mark complete");
-            await log(`mission COMPLETE: ${summary}`);
+            await commit(prev, markBlocked(state, blockedSummary), "mark blocked");
+            await log(`mission BLOCKED: ${blockedSummary}. Waiting for user input.`);
         },
 
         async onIdle(data) {

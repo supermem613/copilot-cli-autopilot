@@ -32,6 +32,7 @@ body {
 }
 .card.armed { border-left: 3px solid var(--accent); }
 .card.paused { border-left: 3px solid var(--warn); }
+.card.blocked { border-left: 3px solid var(--warn); }
 .card.complete { border-left: 3px solid var(--good); }
 .card.disabled { opacity: 0.6; }
 
@@ -44,6 +45,7 @@ body {
     font-weight: 700; color: var(--accent);
 }
 .status.paused { color: var(--warn); }
+.status.blocked { color: var(--warn); }
 .status.complete { color: var(--good); }
 .status.idle, .status.disabled { color: var(--muted); }
 
@@ -90,6 +92,11 @@ button.span2 { grid-column: span 2; }
 
 .complete-summary {
     background: rgba(63,185,80,0.08); border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
+    font-size: 13px; color: var(--text);
+}
+.blocked-summary {
+    background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.35);
     border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
     font-size: 13px; color: var(--text);
 }
@@ -188,8 +195,10 @@ function render() {
     }
 
     const isComplete = state.status === "complete";
+    const isBlocked = state.status === "blocked";
     const isPaused = state.status === "paused";
     const isArmed = state.status === "armed";
+    const recoverLabel = isBlocked ? "Retry" : "Resume";
     const elapsed = state.createdAt ? Date.now() - new Date(state.createdAt).getTime() : null;
     const fired = state.continuationsFired || 0;
     const inputTokens = state.inputTokens || 0;
@@ -204,6 +213,8 @@ function render() {
             <div class="goal">${escapeHtml(state.goal || "(no goal)")}</div>
             ${isComplete && state.completeSummary ? `
                 <div class="complete-summary">✓ ${escapeHtml(state.completeSummary)}</div>` : ""}
+            ${isBlocked && state.blockedSummary ? `
+                <div class="blocked-summary">Blocked: ${escapeHtml(state.blockedSummary)}</div>` : ""}
             <div class="stats">
                 <div class="stat">
                     <div class="stat-label">Turns</div>
@@ -223,8 +234,8 @@ function render() {
                 </div>
             </div>
             <div class="actions">
-                ${isPaused
-                    ? `<button class="icon-btn primary" data-act="resume" title="Resume" aria-label="Resume">▶</button>`
+                ${isPaused || isBlocked
+                    ? `<button class="icon-btn primary" data-act="resume" title="${recoverLabel}" aria-label="${recoverLabel}">▶</button>`
                     : `<button class="icon-btn warn" data-act="pause" title="Pause" aria-label="Pause" ${isArmed ? "" : "disabled"}>⏸</button>`}
                 <button class="icon-btn danger" data-act="clear" title="Clear" aria-label="Clear objective">✕</button>
             </div>

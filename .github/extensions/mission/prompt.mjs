@@ -4,12 +4,15 @@
 
 export const COMPLETE_TOKEN = "MISSION_COMPLETE:";
 export const LEGACY_COMPLETE_TOKEN = "AUTOPILOT_COMPLETE:";
+export const BLOCKED_TOKEN = "MISSION_BLOCKED:";
 
 export function buildContinuationPrompt(goal, fired) {
     return (
         `[mission turn ${fired}] Continue toward: "${goal}"\n` +
         `When the objective is fully met, end your reply with a line:\n` +
         `${COMPLETE_TOKEN} <one-sentence summary>\n` +
+        `If there is no viable next step without user input, end with:\n` +
+        `${BLOCKED_TOKEN} <what is blocking progress>\n` +
         `Otherwise take the next concrete step.`
     );
 }
@@ -19,9 +22,17 @@ export function buildContinuationPrompt(goal, fired) {
 // false positives when the agent merely *discusses* the token (e.g. while
 // explaining the mission mechanism, as it might in a debugging session).
 export function detectComplete(content) {
+    return detectLineToken(content, [COMPLETE_TOKEN, LEGACY_COMPLETE_TOKEN]);
+}
+
+export function detectBlocked(content) {
+    return detectLineToken(content, [BLOCKED_TOKEN]);
+}
+
+function detectLineToken(content, tokensToDetect) {
     if (!content || typeof content !== "string") return null;
     // Match start-of-string OR start-of-line (after newline, optionally preceded by whitespace).
-    const tokens = [COMPLETE_TOKEN, LEGACY_COMPLETE_TOKEN]
+    const tokens = tokensToDetect
         .map((token) => token.replace(":", "\\:"))
         .join("|");
     const re = new RegExp(`(?:^|\\n)\\s*(?:${tokens})\\s*(.*)`, "m");

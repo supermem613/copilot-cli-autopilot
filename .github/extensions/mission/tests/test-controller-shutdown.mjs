@@ -92,6 +92,38 @@ async function run() {
         await rm(workspace, { recursive: true, force: true });
     }
 
+    {
+        const workspace = await mkdtemp(join(tmpdir(), "mission-blocked-"));
+        const logs = [];
+        const session = makeSession();
+        const controller = createController({
+            session,
+            workspacePath: workspace,
+            log: async (msg) => { logs.push(msg); },
+            onStateChange: () => {},
+        });
+
+        await controller.init();
+        await controller.start("finish blocked work");
+        await controller.onAssistantMessage({
+            content: "I cannot proceed.\nMISSION_BLOCKED: missing credentials",
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+
+        if (controller.snapshot.status !== "blocked") {
+            throw new Error(`expected blocked status, got ${controller.snapshot.status}`);
+        }
+        if (session.sent.length !== 0) {
+            throw new Error("blocked mission must not send another continuation");
+        }
+        if (!logs.some((msg) => /mission BLOCKED: missing credentials/.test(msg))) {
+            throw new Error("expected blocked log message");
+        }
+
+        await controller.shutdown();
+        await rm(workspace, { recursive: true, force: true });
+    }
+
     for (let i = 0; i < 50; i += 1) {
         const workspace = await mkdtemp(join(tmpdir(), "mission-shutdown-"));
         const controller = createController({

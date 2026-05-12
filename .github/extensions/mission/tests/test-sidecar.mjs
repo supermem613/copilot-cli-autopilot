@@ -110,6 +110,11 @@ async function run() {
     assert.match(viewer.body, /location\.reload\(\)/, "case 4: refresh button reloads viewer");
     assert.match(viewer.body, /window\.resizeTo\(width, height\)/, "case 4: HTML auto-sizes window to content");
     assert.match(viewer.body, /fitUntilStable/, "case 4: HTML retries auto-size until stable");
+    assert.match(viewer.body, /\.card\.blocked/, "case 4: HTML styles blocked card");
+    assert.match(viewer.body, /\.status\.blocked/, "case 4: HTML styles blocked status");
+    assert.match(viewer.body, /blocked-summary/, "case 4: HTML renders blocked reason panel");
+    assert.match(viewer.body, /isPaused \|\| isBlocked/, "case 4: HTML offers resume for blocked missions");
+    assert.match(viewer.body, /isBlocked \? "Retry" : "Resume"/, "case 4: HTML labels blocked recovery as retry");
 
     const favicon = await getRaw("127.0.0.1", port, "/favicon.svg");
     assert.equal(favicon.status, 200, "case 4b: GET /favicon.svg returns 200");
@@ -189,7 +194,7 @@ async function run() {
     assert.equal(sidecar.isRunning, false, "case 13: disabled keeps server down");
 
     await sidecar.shutdown();
-    console.log("✓ test-sidecar: 16/16 passed");
+    console.log("✓ test-sidecar: 21/21 passed");
 }
 
 run().catch((err) => { console.error("FAIL:", err); process.exit(1); });

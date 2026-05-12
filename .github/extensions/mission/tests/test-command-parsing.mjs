@@ -97,7 +97,16 @@ async function run() {
         );
     }
 
-    console.log("✓ test-command-parsing: 8/8 passed");
+    {
+        const { cmd, logs } = makeFakes();
+        await cmd.handler({ command: "/mission help" });
+        assert.ok(
+            logs.some((l) => /retry a blocked mission/.test(l.msg)),
+            "help documents blocked mission resume",
+        );
+    }
+
+    console.log("✓ test-command-parsing: 9/9 passed");
 }
 
 run().catch((err) => { console.error("FAIL:", err); process.exit(1); });
