@@ -36,7 +36,7 @@ const session = await joinSession({ commands: [cmd] });
 logFn = (m, o) => session.log(m, o);
 
 if (!session.workspacePath) {
-    // Skeptic FATAL #2: without workspacePath we cannot persist enabled/off,
+    // Skeptic FATAL #2: without workspacePath we cannot persist state,
     // and an "armed" objective could silently vanish. Fail loud rather than
     // pretend to work.
     const err = new WorkspaceUnavailable();
@@ -46,7 +46,7 @@ if (!session.workspacePath) {
 
 // Sidecar is built before the controller so we can pass its visibility
 // callback in. controllerRef wiring above means the sidecar can call
-// controller methods (pause/resume/clear/off) once init() resolves.
+// controller methods once init() resolves.
 const sidecar = createSidecar({
     sessionId: session.id ?? "unknown",
     log: logFn,
@@ -56,8 +56,6 @@ const sidecar = createSidecar({
         pause:          (...a) => controllerRef.value.pause(...a),
         resume:         (...a) => controllerRef.value.resume(...a),
         clearObjective: (...a) => controllerRef.value.clearObjective(...a),
-        turnOff:        (...a) => controllerRef.value.turnOff(...a),
-        turnOn:         (...a) => controllerRef.value.turnOn(...a),
         start:          (...a) => controllerRef.value.start(...a),
         get snapshot()  { return controllerRef.value?.snapshot ?? null; },
     },

@@ -1,7 +1,6 @@
 // Persist state to <workspacePath>/mission.json.
 // Fail loud at session start when workspacePath is undefined — Skeptic's FATAL #2.
-// Without persistence, "off" would not survive a /clear and an armed objective
-// would not survive a session resume.
+// Without persistence, an armed objective would not survive a session resume.
 
 import { promises as fs } from "node:fs";
 import { join, dirname } from "node:path";

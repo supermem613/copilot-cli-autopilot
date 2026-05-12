@@ -12,8 +12,6 @@ function makeFakes() {
         async pause() { calls.push({ method: "pause" }); },
         async resume() { calls.push({ method: "resume" }); },
         async clearObjective() { calls.push({ method: "clearObjective" }); },
-        async turnOff() { calls.push({ method: "turnOff" }); },
-        async turnOn() { calls.push({ method: "turnOn" }); },
         async show() { calls.push({ method: "show" }); },
     };
     const ref = { get() { return fakeController; } };
@@ -98,15 +96,35 @@ async function run() {
     }
 
     {
-        const { cmd, logs } = makeFakes();
+        const { cmd, calls, logs } = makeFakes();
         await cmd.handler({ command: "/mission help" });
         assert.ok(
             logs.some((l) => /retry a blocked mission/.test(l.msg)),
             "help documents blocked mission resume",
         );
+        assert.ok(
+            !logs.some((l) => /\/mission off/.test(l.msg) || /\/mission on/.test(l.msg)),
+            "help does not document removed off/on commands",
+        );
+        assert.equal(calls.length, 0, "help does not dispatch controller calls");
     }
 
-    console.log("✓ test-command-parsing: 9/9 passed");
+    {
+        const { cmd, calls, logs } = makeFakes();
+        await cmd.handler({ command: "/mission off" });
+        await cmd.handler({ command: "/mission on" });
+        assert.deepEqual(calls, [], "removed off/on commands do not dispatch");
+        assert.ok(
+            logs.some((l) => /\/mission off was removed/.test(l.msg) && l.opts?.level === "warning"),
+            "removed off command logs warning",
+        );
+        assert.ok(
+            logs.some((l) => /\/mission on was removed/.test(l.msg) && l.opts?.level === "warning"),
+            "removed on command logs warning",
+        );
+    }
+
+    console.log("✓ test-command-parsing: 10/10 passed");
 }
 
 run().catch((err) => { console.error("FAIL:", err); process.exit(1); });

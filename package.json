@@ -1,6 +1,6 @@
 {
   "name": "copilot-cli-mission",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "GitHub Copilot CLI extension that autonomously continues turns toward a stated objective with a live sidecar viewer.",
   "type": "module",

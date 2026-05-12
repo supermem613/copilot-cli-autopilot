@@ -12,8 +12,6 @@ function makeFakeController() {
         async pause()          { calls.push("pause"); },
         async resume()         { calls.push("resume"); },
         async clearObjective() { calls.push("clear"); },
-        async turnOff()        { calls.push("off"); },
-        async turnOn()         { calls.push("on"); },
         async start(goal)      { calls.push({ action: "start", goal }); },
         get snapshot()         { return snapshot; },
         _calls: calls,
@@ -145,8 +143,6 @@ async function run() {
     for (const [action, name] of [
         ["resume", "resume"],
         ["clear",  "clear"],
-        ["off",    "off"],
-        ["on",     "on"],
     ]) {
         await postJson("127.0.0.1", port, "/api/action", { action }, { "x-token": token });
         const saw = await pollUntil(() => controller._calls.includes(name));
@@ -189,12 +185,12 @@ async function run() {
     await new Promise((r) => setTimeout(r, 250));
     assert.equal(sidecar.isRunning, false, "case 12: idle takes server down");
 
-    // Case 13: enabled=false also keeps server down.
+    // Case 13: legacy enabled=false no longer hides an active mission.
     await sidecar.syncVisibility({ enabled: false, status: "armed", goal: "x" });
-    assert.equal(sidecar.isRunning, false, "case 13: disabled keeps server down");
+    assert.equal(sidecar.isRunning, true, "case 13: armed mission stays visible");
 
     await sidecar.shutdown();
-    console.log("✓ test-sidecar: 21/21 passed");
+    console.log("✓ test-sidecar: 19/19 passed");
 }
 
 run().catch((err) => { console.error("FAIL:", err); process.exit(1); });

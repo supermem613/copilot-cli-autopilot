@@ -45,7 +45,7 @@ node "$installer"
 After the script succeeds, instruct the user:
 
 1. Run `/extensions`.
-2. Enable `mission` under **User**, or toggle it off and on if it was already enabled.
+2. Enable `mission` under **User**, or reload it if it was already enabled.
 3. Run `/mission help` to confirm the command is available.
 
 Do not overwrite unrelated user extensions. If the installer reports that it refused to overwrite an existing non-mission extension or a symlink/junction, stop and explain — the user already has a user extension named `mission` (likely a dev-loop checkout).

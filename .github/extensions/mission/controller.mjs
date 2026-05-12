@@ -7,10 +7,10 @@
 //   - All session.send() calls are deferred via setTimeout(0) to avoid reentrancy
 //     with the idle event that triggered them.
 //   - The grace window between "idle observed" and "send fired" gives the user
-//     a chance to cancel via /mission off|pause|clear without burning a turn.
+//     a chance to cancel via /mission pause|clear without burning a turn.
 
 import {
-    arm, pause, resume, clear, disable, enable,
+    arm, pause, resume, clear,
     markFiring, markFireSettled, markComplete, markBlocked,
     shouldFire, summarize,
 } from "./state.mjs";
@@ -177,10 +177,6 @@ export function createController({ session, workspacePath, log, onStateChange, o
         },
 
         async start(goal) {
-            if (!state.enabled) {
-                await log("mission is DISABLED. Run /mission on to re-enable.", { level: "warning" });
-                return;
-            }
             const wasActive = state.status === "armed" || state.status === "paused";
             // Replacement confirmation — capability-gated; if elicitation isn't
             // available we proceed (with a warning), preserving Codex parity
@@ -202,7 +198,7 @@ export function createController({ session, workspacePath, log, onStateChange, o
             await commit(prev, arm(state, goal), "start");
             await log(
                 `mission ARMED: "${goal}" [grace=${GRACE_MS}ms]. ` +
-                `Will fire on next idle. /mission pause|clear|off to stop.`,
+                `Will fire on next idle. /mission pause to stop.`,
             );
             if (onShow) {
                 await onShow({ ...state });
@@ -253,23 +249,6 @@ export function createController({ session, workspacePath, log, onStateChange, o
             const prev = state;
             await commit(prev, clear(state), "clear");
             await log(`mission cleared (was: ${was})`);
-        },
-
-        async turnOff() {
-            const was = summarize(state);
-            const prev = state;
-            await commit(prev, disable(state), "off");
-            await log(`mission OFF (durable). Was: ${was}. /mission on to re-enable.`);
-        },
-
-        async turnOn() {
-            if (state.enabled) {
-                await log("mission is already enabled");
-                return;
-            }
-            const prev = state;
-            await commit(prev, enable(state), "on");
-            await log("mission ON. No objective armed. /mission <objective> to begin.");
         },
 
         async show() {
@@ -331,7 +310,7 @@ export function createController({ session, workspacePath, log, onStateChange, o
 
             await log(
                 `mission: idle observed; grace=${GRACE_MS}ms before firing toward "${capturedGoal}". ` +
-                `Cancel via /mission pause|off|clear.`,
+                `Cancel via /mission pause.`,
             );
             const graceElapsed = await sleep(GRACE_MS, shutdownController.signal);
             if (!graceElapsed) {
@@ -342,8 +321,8 @@ export function createController({ session, workspacePath, log, onStateChange, o
                 return;
             }
 
-            // Post-grace re-check. Cancel if any of: disabled, no longer armed,
-            // OR objective changed (user replaced goal during grace).
+            // Post-grace re-check. Cancel if no longer armed OR objective changed
+            // (user replaced goal during grace).
             if (shuttingDown || !state.enabled || state.status !== "armed" || state.goal !== capturedGoal) {
                 const prev2 = state;
                 try {

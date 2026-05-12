@@ -15,8 +15,6 @@ const HELP = [
     "  /mission pause        suppress continuations (keeps objective)",
     "  /mission resume       un-pause or retry a blocked mission",
     "  /mission clear        clear objective (returns to idle)",
-    "  /mission off          durable disable (persists across sessions)",
-    "  /mission on           re-enable after off",
     "  /mission help         this message",
 ].join("\n");
 
@@ -54,8 +52,12 @@ export function makeMissionCommand(controllerRef, log) {
                 case "resume":  return controller.resume();
                 case "clear":
                     return controller.clearObjective();
-                case "off":     return controller.turnOff();
-                case "on":      return controller.turnOn();
+                case "off":
+                    return log("mission: /mission off was removed. Use /mission clear to stop the current mission.",
+                        { level: "warning" });
+                case "on":
+                    return log("mission: /mission on was removed. Start a new mission with /mission <objective>.",
+                        { level: "warning" });
                 case "help":    return log(HELP);
                 default: {
                     if (/^--cap(?:\b|=)/.test(tail)) {

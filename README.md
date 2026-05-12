@@ -88,8 +88,6 @@ Enable `mission` under **User**. Then run `/mission help` to confirm.
 /mission pause
 /mission resume         # also retries a blocked mission
 /mission clear
-/mission off            # durable disable
-/mission on
 ```
 
 `/mission` prints the current status and opens the sidecar UX with the latest snapshot, even when there is no active objective. `/mission resume` also opens the sidecar after resuming or retrying a blocked mission.
@@ -118,7 +116,7 @@ See [`.github/extensions/mission/README.md`](./.github/extensions/mission/README
 git clone https://github.com/supermem613/copilot-cli-mission.git
 cd copilot-cli-mission
 npm run check    # node --check on every .mjs
-npm test         # 7 test files, 62 assertions
+npm test         # 7 test files, 82 assertions
 ```
 
 To run your local working tree as the live extension (instead of the installed plugin), drop a one-line shim at `~/.copilot/extensions/mission/extension.mjs` that dynamic-imports your working tree. **Do not** point the directory itself at the working tree with a junction or symlink — Copilot CLI's extension loader does not pick those up.

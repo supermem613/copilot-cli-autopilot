@@ -79,6 +79,21 @@ async function run() {
     assert.equal(loaded2.hardCap, undefined, "load scrubs legacy hardCap from disk");
     assert.equal(loaded2.remainingTurns, undefined, "load scrubs legacy remainingTurns from disk");
 
+    await fs.writeFile(
+        join(workspace, "mission.json"),
+        JSON.stringify({
+            ...stateWithVolatile,
+            enabled: false,
+            status: "armed",
+            goal: "legacy disabled mission",
+        }),
+        "utf8",
+    );
+    const legacyDisabled = await loadState(workspace);
+    assert.equal(legacyDisabled.enabled, true, "load re-enables legacy disabled state");
+    assert.equal(legacyDisabled.status, "armed", "legacy disabled active mission remains armed");
+    assert.equal(legacyDisabled.goal, "legacy disabled mission", "legacy disabled objective is preserved");
+
     await fs.rm(join(workspace, "mission.json"), { force: true });
     await fs.writeFile(join(workspace, "autopilot.json"), JSON.stringify(stateWithVolatile), "utf8");
     const migrated = await loadState(workspace);
@@ -87,7 +102,7 @@ async function run() {
     await assert.rejects(() => fs.access(join(workspace, "autopilot.json")), "migration removes autopilot.json");
 
     await fs.rm(workspace, { recursive: true, force: true });
-    console.log("✓ test-persistence: 25/25 passed");
+    console.log("✓ test-persistence: 28/28 passed");
 }
 
 run().catch((err) => { console.error("FAIL:", err); process.exit(1); });

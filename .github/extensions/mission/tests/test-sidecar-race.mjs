@@ -11,7 +11,6 @@ import { createSidecar } from "../sidecar.mjs";
 function makeFakeController() {
     return {
         async pause() {}, async resume() {}, async clearObjective() {},
-        async turnOff() {}, async turnOn() {},
         get snapshot() { return { enabled: true, status: "idle" }; },
     };
 }

@@ -11,7 +11,7 @@
 // Wire protocol:
 //   Server → client: { type: "state", state: <full state snapshot> }
 //                    { type: "close" }  (asks the page to close itself)
-//   Client → server: POST /api/action { action: "pause"|"resume"|"clear"|"off"|"on"|"start", objective?: string }
+//   Client → server: POST /api/action { action: "pause"|"resume"|"clear"|"start", objective?: string }
 
 import { createServer as createHttpServer } from "node:http";
 import { spawn } from "node:child_process";
@@ -54,11 +54,11 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
     }
 
     // Lifecycle: visible iff status is not "idle". When status returns to
-    // "idle" (cleared) AND mission is enabled, hide. When disabled, hide.
+    // "idle" (cleared), hide.
     // Serialized so concurrent state notifications can't race ensureRunning/stop.
     function syncVisibility(state) {
         return withLifecycleLock(async () => {
-            const shouldShow = state.enabled && state.status !== "idle";
+            const shouldShow = state.status !== "idle";
             if (shouldShow) {
                 if (!server) {
                     await startServer();
@@ -175,8 +175,6 @@ export function createSidecar({ controller, sessionId, log, noLaunch = false }) 
                 case "pause":  await controller.pause(); break;
                 case "resume": await controller.resume(); break;
                 case "clear":  await controller.clearObjective(); break;
-                case "off":    await controller.turnOff(); break;
-                case "on":     await controller.turnOn(); break;
                 case "start":  await dispatchStart(payload); break;
                 default:
                     await log(`mission sidecar: unknown action "${action}"`, { level: "warning" });

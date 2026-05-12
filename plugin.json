@@ -1,7 +1,7 @@
 {
   "name": "copilot-cli-mission",
   "description": "Autonomous turn continuation toward a stated objective for GitHub Copilot CLI, with a live sidecar viewer.",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "author": {
     "name": "Marcus Markiewicz"
   },

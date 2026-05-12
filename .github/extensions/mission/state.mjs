@@ -54,7 +54,7 @@ export function normalizeState(raw) {
         inFlight: false,
         // Validate enums.
         status: normalizeStatus(raw.status, raw.goal),
-        enabled: typeof raw.enabled === "boolean" ? raw.enabled : true,
+        enabled: true,
         continuationsFired: Number.isInteger(raw.continuationsFired) ? raw.continuationsFired : 0,
         inputTokens: normalizeTokenCounter(raw.inputTokens),
         outputTokens: normalizeTokenCounter(raw.outputTokens),
@@ -125,14 +125,6 @@ export function clear(state) {
     };
 }
 
-export function disable(state) {
-    return { ...clear(state), enabled: false };
-}
-
-export function enable(state) {
-    return { ...state, enabled: true };
-}
-
 export function markFiring(state) {
     return {
         ...state,
@@ -179,7 +171,6 @@ export function shouldFire(state, idleData) {
 
 // Format a one-line summary for /mission and the sidecar.
 export function summarize(state) {
-    if (!state.enabled) return "mission DISABLED (/mission on to re-enable)";
     if (state.status === "idle") return "mission idle (no objective)";
     if (state.status === "complete") {
         return `mission COMPLETE: ${state.completeSummary ?? "(no summary)"} ` +

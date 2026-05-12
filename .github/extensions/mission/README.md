@@ -36,13 +36,11 @@ The agent works another turn. Loop continues. When the agent finishes, it emits 
 | `/mission pause` | Suppress continuations; objective is preserved. |
 | `/mission resume` | Un-pause or retry a blocked mission and open the sidecar UX. |
 | `/mission clear` | Drop the objective; return to idle. |
-| `/mission off` | **Durable** disable. Persists across sessions. |
-| `/mission on` | Re-enable after `off`. |
 | `/mission help` | Subcommand list. |
 
 When `/mission` opens the sidecar with no active objective, the idle view includes an objective text box and **Start mission** button. The button uses the same localhost control channel as Pause / Resume / Clear, so starting from the sidecar does not require returning to the terminal.
 
-Cancelling during the grace window via `pause`, `clear`, or `off` prevents the next continuation from firing — no model spend.
+Cancelling during the grace window via `pause` or `clear` prevents the next continuation from firing — no model spend.
 
 Pressing Ctrl-C during a continuation also aborts cleanly: mission honors `session.idle.aborted` and will not fire the next continuation.
 
@@ -65,15 +63,14 @@ These differ from Codex's `/goal` because the Copilot CLI extension API doesn't 
 | Persistent footer / statusline showing the active objective | **Not provided.** | The CLI exposes `session.log()` to the scrollback timeline only. There is no extension-visible footer/statusline channel. We tried OSC 0 escape sequences (`ESC ] 0 ; <text> BEL`) to write the terminal title bar from the extension subprocess; the host PTY captures and discards them. Confirmed dead end. |
 | Notification suppression while continuations fire | **Not provided.** | No SDK API for muting notifications from an extension. |
 | Exact token budget tracking | **Approximate.** | The sidecar accumulates root-agent `assistant.usage` input/output/cache/reasoning token deltas while an objective is active. SDK usage events can undercount sub-agent and MCP token usage. Budget reporting is best-effort. |
-| Works without infinite sessions | **No.** | Without `session.workspacePath` the durable `off` flag and an active objective would silently vanish on `/clear` or resume. We fail loud at startup rather than pretend to work. |
+| Works without infinite sessions | **No.** | Without `session.workspacePath` an active objective would silently vanish on resume. We fail loud at startup rather than pretend to work. |
 
 ## Safety / kill switches
 
-- **Grace window** (1.5s). Cancellation paths (`pause` / `clear` / `off`) checked after grace; if state changed, no send.
+- **Grace window** (1.5s). Cancellation paths (`pause` / `clear`) checked after grace; if state changed, no send.
 - **Abort honor.** Ctrl-C sets `session.idle.aborted=true`; mission skips the continuation.
 - **Plan-mode auto-pause.** Switching the host to plan mode pauses an armed objective. Manual resume only.
 - **Blocked stop.** `MISSION_BLOCKED:` marks the mission blocked and suppresses further continuations until you resume or clear.
-- **Durable disable.** `/mission off` persists; survives session resume and `/clear`.
 
 ## Sidecar viewer
 
@@ -91,7 +88,7 @@ When an objective is armed (status: `armed`, `paused`, `blocked`, or `complete`)
 - **Token consumption** — separate best-effort root-agent `assistant.usage` totals for input and output tokens. Counters reset on each new objective and are not persisted across extension reloads.
 - **Controls** — large icon buttons for `Pause` / `Resume` / `Retry` and `Clear`.
 
-The window auto-closes when status returns to `idle` (cleared) or mission is turned off.
+The window auto-closes when status returns to `idle` (cleared).
 
 Implementation: zero-dep `node:http` + hand-rolled WebSocket on `127.0.0.1` (OS-assigned port), token-gated, opened via `msedge --app=` (or `chrome --app=`). Profile dir at `~/.copilot/mission-viewer-profile/`. Same proven pattern as the backlog sidecar.
 
