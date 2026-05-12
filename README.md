@@ -2,11 +2,13 @@
 
 A GitHub Copilot CLI extension that **autonomously continues turns toward a stated objective**, with a live sidecar viewer for status and one-click control.
 
-Tell mission your goal once with `/mission start <objective>`. It nudges the agent to keep working toward that objective, one continuation per idle turn, until the agent emits `MISSION_COMPLETE: <summary>` or the turn cap is exhausted.
+Tell mission your goal once with `/mission <objective>`. It nudges the agent to keep working toward that objective, one continuation per idle turn, until the agent emits `MISSION_COMPLETE: <summary>`.
 
 A chromeless sidecar window opens automatically while a goal is armed, showing live status, turns, elapsed time, best-effort input/output token consumption, and large icon controls that work even mid-turn.
 
-![Mission sidecar showing status, token panels, and pause/stop controls](./.github/extensions/mission/docs/mission-sidecar.png)
+| Start from the sidecar | Track a running mission | Resume when paused |
+| --- | --- | --- |
+| ![Mission idle sidecar with objective text box and Start mission button](./.github/extensions/mission/docs/mission-sidecar-idle.png) | ![Mission active sidecar showing status, turn count, token panels, and pause/clear controls](./.github/extensions/mission/docs/mission-sidecar-active.png) | ![Mission paused sidecar showing resume and clear controls](./.github/extensions/mission/docs/mission-sidecar-paused.png) |
 
 Inspired by Codex's `/goal` feature — built as a pure Copilot CLI extension with no host-side changes.
 
@@ -81,9 +83,8 @@ Enable `mission` under **User**. Then run `/mission help` to confirm.
 ## Use
 
 ```
-/mission start refactor src/foo.ts to remove the global mutex
-/mission start --cap 5 ship the bugfix
-/mission show
+/mission refactor src/foo.ts to remove the global mutex
+/mission
 /mission pause
 /mission resume
 /mission clear
@@ -91,13 +92,13 @@ Enable `mission` under **User**. Then run `/mission help` to confirm.
 /mission on
 ```
 
-`/mission show` prints the current status and opens the sidecar UX with the latest snapshot, even when there is no active objective.
+`/mission` prints the current status and opens the sidecar UX with the latest snapshot, even when there is no active objective. `/mission resume` also opens the sidecar after resuming.
 When idle, the sidecar includes an objective text box and **Start mission** button so you can start from the UX.
 
 The agent works one turn, becomes idle, mission waits ~1.5s (grace window — your chance to cancel), then injects a continuation prompt visible in the timeline:
 
 ```
-[mission 1/20] Continue toward: "refactor src/foo.ts to remove the global mutex"
+[mission turn 1] Continue toward: "refactor src/foo.ts to remove the global mutex"
 When the objective is fully met, end your reply with a line:
 MISSION_COMPLETE: <one-sentence summary>
 Otherwise take the next concrete step.
@@ -105,7 +106,7 @@ Otherwise take the next concrete step.
 
 When the agent finishes, it emits the `MISSION_COMPLETE:` line and mission stops automatically.
 
-The sidecar window (chromeless `msedge --app=` on Windows; falls back to default browser elsewhere) is open while a goal is active. Click **Pause / Resume** or **Stop** any time — the buttons hit a localhost HTTP endpoint that bypasses the host's slash-command queue, so they work *during* an in-flight LLM turn.
+The sidecar window (chromeless `msedge --app=` on Windows; falls back to default browser elsewhere) opens whenever a goal starts or resumes. Click **Pause / Resume** or **Clear** any time — the buttons hit a localhost HTTP endpoint that bypasses the host's slash-command queue, so they work *during* an in-flight LLM turn.
 
 See [`.github/extensions/mission/README.md`](./.github/extensions/mission/README.md) for the full command reference, safety/kill-switches, non-goals, and architecture notes.
 
@@ -115,7 +116,7 @@ See [`.github/extensions/mission/README.md`](./.github/extensions/mission/README
 git clone https://github.com/supermem613/copilot-cli-mission.git
 cd copilot-cli-mission
 npm run check    # node --check on every .mjs
-npm test         # 7 test files, 55 assertions
+npm test         # 7 test files, 62 assertions
 ```
 
 To run your local working tree as the live extension (instead of the installed plugin), drop a one-line shim at `~/.copilot/extensions/mission/extension.mjs` that dynamic-imports your working tree. **Do not** point the directory itself at the working tree with a junction or symlink — Copilot CLI's extension loader does not pick those up.

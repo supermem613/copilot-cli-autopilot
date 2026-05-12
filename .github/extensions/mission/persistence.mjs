@@ -27,31 +27,22 @@ function legacyStatePath(workspacePath) {
     return join(workspacePath, "autopilot.json");
 }
 
-// Volatile fields — never persisted. They reflect runtime telemetry that
-// would be stale on the next session. Cleared on save and on load.
-// (Shadow review: stale context tokens shown after resume.)
+// Volatile fields — never persisted. Context-window pressure is point-in-time
+// telemetry and would be stale on the next session.
 const VOLATILE_FIELDS = [
     "contextTokens",
     "contextMaxTokens",
     "contextUpdatedAt",
-    "inputTokens",
-    "outputTokens",
-    "cacheReadTokens",
-    "cacheWriteTokens",
-    "reasoningTokens",
-    "tokenUpdatedAt",
 ];
-const TOKEN_COUNTER_FIELDS = new Set([
-    "inputTokens",
-    "outputTokens",
-    "cacheReadTokens",
-    "cacheWriteTokens",
-    "reasoningTokens",
-]);
+const DEPRECATED_FIELDS = [
+    "hardCap",
+    "remainingTurns",
+];
 
 function stripVolatile(state) {
     const out = { ...state };
     for (const k of VOLATILE_FIELDS) delete out[k];
+    for (const k of DEPRECATED_FIELDS) delete out[k];
     return out;
 }
 
@@ -84,7 +75,8 @@ function normalizeLoadedState(raw) {
     const parsed = normalizeState(JSON.parse(raw));
     // Belt-and-braces: also strip on load in case a prior version
     // accidentally persisted these.
-    for (const k of VOLATILE_FIELDS) parsed[k] = TOKEN_COUNTER_FIELDS.has(k) ? 0 : null;
+    for (const k of VOLATILE_FIELDS) parsed[k] = null;
+    for (const k of DEPRECATED_FIELDS) delete parsed[k];
     return parsed;
 }
 

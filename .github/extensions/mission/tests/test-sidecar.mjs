@@ -82,7 +82,7 @@ async function run() {
     // Case 3: armed → server up.
     const armedState = {
         enabled: true, status: "armed", goal: "test goal",
-        hardCap: 5, continuationsFired: 1, remainingTurns: 4,
+        continuationsFired: 1,
         createdAt: new Date().toISOString(), lastFiredAt: null, inFlight: false,
     };
     await sidecar.syncVisibility(armedState);
@@ -106,9 +106,10 @@ async function run() {
     assert.match(viewer.body, /<title>mission<\/title>/, "case 4: HTML has expected title");
     assert.match(viewer.body, /href="\/favicon\.svg"/, "case 4: HTML links favicon");
     assert.match(viewer.body, /id="startForm"/, "case 4: HTML includes idle start form");
-    assert.match(viewer.body, /id="refreshButton"/, "case 4: HTML includes refresh button");
+    assert.match(viewer.body, /data-refresh/, "case 4: HTML includes refresh button");
     assert.match(viewer.body, /location\.reload\(\)/, "case 4: refresh button reloads viewer");
     assert.match(viewer.body, /window\.resizeTo\(width, height\)/, "case 4: HTML auto-sizes window to content");
+    assert.match(viewer.body, /fitUntilStable/, "case 4: HTML retries auto-size until stable");
 
     const favicon = await getRaw("127.0.0.1", port, "/favicon.svg");
     assert.equal(favicon.status, 200, "case 4b: GET /favicon.svg returns 200");
@@ -184,7 +185,7 @@ async function run() {
     assert.equal(sidecar.isRunning, false, "case 12: idle takes server down");
 
     // Case 13: enabled=false also keeps server down.
-    await sidecar.syncVisibility({ enabled: false, status: "armed", goal: "x", hardCap: 1 });
+    await sidecar.syncVisibility({ enabled: false, status: "armed", goal: "x" });
     assert.equal(sidecar.isRunning, false, "case 13: disabled keeps server down");
 
     await sidecar.shutdown();

@@ -5,9 +5,9 @@
 export const COMPLETE_TOKEN = "MISSION_COMPLETE:";
 export const LEGACY_COMPLETE_TOKEN = "AUTOPILOT_COMPLETE:";
 
-export function buildContinuationPrompt(goal, fired, hardCap) {
+export function buildContinuationPrompt(goal, fired) {
     return (
-        `[mission ${fired}/${hardCap}] Continue toward: "${goal}"\n` +
+        `[mission turn ${fired}] Continue toward: "${goal}"\n` +
         `When the objective is fully met, end your reply with a line:\n` +
         `${COMPLETE_TOKEN} <one-sentence summary>\n` +
         `Otherwise take the next concrete step.`

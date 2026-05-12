@@ -25,7 +25,6 @@ body {
     overflow: hidden;
 }
 .shell { padding: 10px; width: 440px; }
-.toolbar { display: flex; justify-content: flex-end; margin-bottom: 6px; }
 
 .card {
     background: var(--surface); border: 1px solid var(--border);
@@ -34,7 +33,6 @@ body {
 .card.armed { border-left: 3px solid var(--accent); }
 .card.paused { border-left: 3px solid var(--warn); }
 .card.complete { border-left: 3px solid var(--good); }
-.card.spent { border-left: 3px solid var(--muted); }
 .card.disabled { opacity: 0.6; }
 
 .topline {
@@ -47,7 +45,7 @@ body {
 }
 .status.paused { color: var(--warn); }
 .status.complete { color: var(--good); }
-.status.spent, .status.idle, .status.disabled { color: var(--muted); }
+.status.idle, .status.disabled { color: var(--muted); }
 
 .goal {
     font-size: 16px; font-weight: 650; margin-bottom: 10px;
@@ -121,7 +119,6 @@ textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2
 </head>
 <body>
 <main class="shell">
-<div class="toolbar"><button class="refresh-btn" id="refreshButton" title="Refresh" aria-label="Refresh">↻</button></div>
 <div id="root"></div>
 </main>
 
@@ -130,6 +127,7 @@ const TOKEN = new URLSearchParams(location.search).get("token") || "";
 
 let state = null;
 let lastRenderedStatus = null;
+let resizeRunId = 0;
 
 function fmtDuration(ms) {
     if (!Number.isFinite(ms) || ms < 0) return "—";
@@ -175,6 +173,7 @@ function render() {
         const shouldFocusObjective = lastRenderedStatus !== "idle";
         root.innerHTML = `
             <div class="empty-state">
+                <div class="topline"><span></span>${refreshButtonHtml()}</div>
                 <div>No active objective.</div>
                 <form class="start-form" id="startForm">
                     <label for="objectiveInput">Objective</label>
@@ -191,10 +190,8 @@ function render() {
     const isComplete = state.status === "complete";
     const isPaused = state.status === "paused";
     const isArmed = state.status === "armed";
-    const isSpent = state.status === "spent";
     const elapsed = state.createdAt ? Date.now() - new Date(state.createdAt).getTime() : null;
     const fired = state.continuationsFired || 0;
-    const cap = state.hardCap || 1;
     const inputTokens = state.inputTokens || 0;
     const outputTokens = state.outputTokens || 0;
 
@@ -202,6 +199,7 @@ function render() {
         <div class="card ${state.status}">
             <div class="topline">
                 <div class="status ${state.status}">${state.status}${state.inFlight ? " · firing" : ""}</div>
+                ${refreshButtonHtml()}
             </div>
             <div class="goal">${escapeHtml(state.goal || "(no goal)")}</div>
             ${isComplete && state.completeSummary ? `
@@ -209,7 +207,7 @@ function render() {
             <div class="stats">
                 <div class="stat">
                     <div class="stat-label">Turns</div>
-                    <div class="stat-value">${fired} <span class="stat-value dim">/ ${cap}</span></div>
+                    <div class="stat-value">${fired}</div>
                 </div>
                 <div class="stat">
                     <div class="stat-label">Elapsed</div>
@@ -228,7 +226,7 @@ function render() {
                 ${isPaused
                     ? `<button class="icon-btn primary" data-act="resume" title="Resume" aria-label="Resume">▶</button>`
                     : `<button class="icon-btn warn" data-act="pause" title="Pause" aria-label="Pause" ${isArmed ? "" : "disabled"}>⏸</button>`}
-                <button class="icon-btn danger" data-act="clear" title="Stop" aria-label="Stop">⏹</button>
+                <button class="icon-btn danger" data-act="clear" title="Clear" aria-label="Clear objective">✕</button>
             </div>
         </div>`;
     lastRenderedStatus = state.status;
@@ -243,7 +241,7 @@ function escapeHtml(s) {
 
 function resizeToContent() {
     const shell = document.querySelector(".shell");
-    if (!shell) return;
+    if (!shell) return null;
     const rect = shell.getBoundingClientRect();
     const chromeWidth = Math.max(0, window.outerWidth - window.innerWidth);
     const rawChromeHeight = Math.max(0, window.outerHeight - window.innerHeight);
@@ -251,13 +249,32 @@ function resizeToContent() {
     const width = Math.ceil(rect.width + chromeWidth);
     const height = Math.ceil(rect.height + chromeHeight);
     try { window.resizeTo(width, height); } catch {}
+    return { width, height };
 }
 
 function scheduleResize() {
-    requestAnimationFrame(resizeToContent);
+    const runId = ++resizeRunId;
+    let attempts = 0;
+    const fitUntilStable = () => {
+        if (runId !== resizeRunId) return;
+        const target = resizeToContent();
+        if (!target) return;
+        const widthDelta = Math.abs(window.outerWidth - target.width);
+        const heightDelta = Math.abs(window.outerHeight - target.height);
+        attempts += 1;
+        if ((widthDelta > 2 || heightDelta > 2) && attempts < 30) {
+            requestAnimationFrame(fitUntilStable);
+        }
+    };
+    requestAnimationFrame(fitUntilStable);
 }
 
-document.getElementById("refreshButton")?.addEventListener("click", () => {
+function refreshButtonHtml() {
+    return `<button class="refresh-btn" data-refresh title="Refresh" aria-label="Refresh">↻</button>`;
+}
+
+document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-refresh]")) return;
     location.reload();
 });
 

@@ -2,15 +2,13 @@
 // State invariants are enforced here so the controller stays thin.
 
 export const SCHEMA_VERSION = 1;
-export const DEFAULT_HARD_CAP = 20;
 
 // status values:
 //   idle      — no objective armed
 //   armed     — objective active, continuations will fire on session.idle
 //   paused    — objective active, continuations suppressed until resume
-//   spent     — turn cap exhausted; needs new /mission start to re-arm
 //   complete  — agent emitted MISSION_COMPLETE: terminator
-export const STATUSES = ["idle", "armed", "paused", "spent", "complete"];
+export const STATUSES = ["idle", "armed", "paused", "complete"];
 
 export function makeDefaultState() {
     return {
@@ -18,8 +16,6 @@ export function makeDefaultState() {
         enabled: true,
         status: "idle",
         goal: null,
-        hardCap: DEFAULT_HARD_CAP,
-        remainingTurns: 0,
         continuationsFired: 0,
         inFlight: false,
         createdAt: null,
@@ -54,24 +50,36 @@ export function normalizeState(raw) {
         // Force inFlight false on load — process restart invalidates any in-flight send.
         inFlight: false,
         // Validate enums.
-        status: STATUSES.includes(raw.status) ? raw.status : "idle",
+        status: normalizeStatus(raw.status, raw.goal),
         enabled: typeof raw.enabled === "boolean" ? raw.enabled : true,
-        hardCap: Number.isInteger(raw.hardCap) && raw.hardCap > 0 ? raw.hardCap : DEFAULT_HARD_CAP,
-        remainingTurns: Number.isInteger(raw.remainingTurns) ? Math.max(0, raw.remainingTurns) : 0,
         continuationsFired: Number.isInteger(raw.continuationsFired) ? raw.continuationsFired : 0,
+        inputTokens: normalizeTokenCounter(raw.inputTokens),
+        outputTokens: normalizeTokenCounter(raw.outputTokens),
+        cacheReadTokens: normalizeTokenCounter(raw.cacheReadTokens),
+        cacheWriteTokens: normalizeTokenCounter(raw.cacheWriteTokens),
+        reasoningTokens: normalizeTokenCounter(raw.reasoningTokens),
+        tokenUpdatedAt: typeof raw.tokenUpdatedAt === "string" ? raw.tokenUpdatedAt : null,
     };
+}
+
+function normalizeTokenCounter(value) {
+    return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+}
+
+function normalizeStatus(status, goal) {
+    if (STATUSES.includes(status)) return status;
+    if (status === "spent" && goal) return "armed";
+    return "idle";
 }
 
 // Returns a NEW state object (immutable update style — easier to reason about).
 
-export function arm(state, goal, hardCap = DEFAULT_HARD_CAP) {
+export function arm(state, goal) {
     const now = new Date().toISOString();
     return {
         ...state,
         status: "armed",
         goal,
-        hardCap,
-        remainingTurns: hardCap,
         continuationsFired: 0,
         inFlight: false,
         createdAt: now,
@@ -102,7 +110,6 @@ export function clear(state) {
         ...state,
         status: "idle",
         goal: null,
-        remainingTurns: 0,
         inFlight: false,
         createdAt: null,
         lastFiredAt: null,
@@ -123,16 +130,13 @@ export function markFiring(state) {
     return {
         ...state,
         inFlight: true,
-        remainingTurns: Math.max(0, state.remainingTurns - 1),
         continuationsFired: state.continuationsFired + 1,
         lastFiredAt: new Date().toISOString(),
     };
 }
 
 export function markFireSettled(state) {
-    const next = { ...state, inFlight: false };
-    if (next.status === "armed" && next.remainingTurns <= 0) next.status = "spent";
-    return next;
+    return { ...state, inFlight: false };
 }
 
 export function markComplete(state, summary) {
@@ -153,18 +157,17 @@ export function shouldFire(state, idleData) {
     if (state.status !== "armed") return { fire: false, reason: `status=${state.status}` };
     if (state.inFlight) return { fire: false, reason: "already in flight" };
     if (idleData?.aborted) return { fire: false, reason: "previous turn was aborted" };
-    if (state.remainingTurns <= 0) return { fire: false, reason: "turn cap reached" };
     return { fire: true, reason: "armed and ready" };
 }
 
-// Format a one-line summary for /mission show and the spike status command.
+// Format a one-line summary for /mission and the sidecar.
 export function summarize(state) {
     if (!state.enabled) return "mission DISABLED (/mission on to re-enable)";
     if (state.status === "idle") return "mission idle (no objective)";
     if (state.status === "complete") {
         return `mission COMPLETE: ${state.completeSummary ?? "(no summary)"} ` +
-            `[fired ${state.continuationsFired}/${state.hardCap}]`;
+            `[${state.continuationsFired} turns]`;
     }
     return `mission ${state.status.toUpperCase()}: "${state.goal}" ` +
-        `[${state.continuationsFired}/${state.hardCap} fired, ${state.remainingTurns} remaining]`;
+        `[${state.continuationsFired} turns]`;
 }

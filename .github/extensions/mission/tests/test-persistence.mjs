@@ -1,4 +1,4 @@
-// Test: persistence — volatile telemetry fields must NOT be saved.
+// Test: persistence — token counters survive restart while context pressure stays volatile.
 // Run: node tests/test-persistence.mjs
 
 import assert from "node:assert/strict";
@@ -16,8 +16,6 @@ async function run() {
         enabled: true,
         status: "armed",
         goal: "test",
-        hardCap: 5,
-        remainingTurns: 4,
         continuationsFired: 1,
         inFlight: false,
         createdAt: "2026-01-01T00:00:00Z",
@@ -36,38 +34,50 @@ async function run() {
     };
     await saveState(workspace, stateWithVolatile);
 
-    // Read raw file — volatile fields must not appear.
+    // Read raw file — context fields must not appear, objective token counters must.
     const raw = await fs.readFile(join(workspace, "mission.json"), "utf8");
     const parsed = JSON.parse(raw);
     assert.equal(parsed.contextTokens, undefined, "contextTokens must not be persisted");
     assert.equal(parsed.contextMaxTokens, undefined, "contextMaxTokens must not be persisted");
     assert.equal(parsed.contextUpdatedAt, undefined, "contextUpdatedAt must not be persisted");
-    assert.equal(parsed.inputTokens, undefined, "inputTokens must not be persisted");
-    assert.equal(parsed.outputTokens, undefined, "outputTokens must not be persisted");
-    assert.equal(parsed.tokenUpdatedAt, undefined, "tokenUpdatedAt must not be persisted");
+    assert.equal(parsed.inputTokens, 100, "inputTokens must be persisted");
+    assert.equal(parsed.outputTokens, 25, "outputTokens must be persisted");
+    assert.equal(parsed.cacheReadTokens, 200, "cacheReadTokens must be persisted");
+    assert.equal(parsed.cacheWriteTokens, 3, "cacheWriteTokens must be persisted");
+    assert.equal(parsed.reasoningTokens, 7, "reasoningTokens must be persisted");
+    assert.equal(parsed.tokenUpdatedAt, "2026-01-01T00:00:02Z", "tokenUpdatedAt must be persisted");
     assert.equal(parsed.goal, "test", "non-volatile fields are preserved");
+    assert.equal(parsed.hardCap, undefined, "legacy hardCap must not be persisted");
+    assert.equal(parsed.remainingTurns, undefined, "legacy remainingTurns must not be persisted");
 
-    // Load — volatile fields are present but null (so the controller has
-    // a defined shape to work with).
+    // Load — context fields are null, token counters round-trip.
     const loaded = await loadState(workspace);
     assert.equal(loaded.contextTokens, null, "loaded contextTokens is null");
     assert.equal(loaded.contextMaxTokens, null, "loaded contextMaxTokens is null");
     assert.equal(loaded.contextUpdatedAt, null, "loaded contextUpdatedAt is null");
-    assert.equal(loaded.inputTokens, 0, "loaded inputTokens is zero");
-    assert.equal(loaded.outputTokens, 0, "loaded outputTokens is zero");
-    assert.equal(loaded.tokenUpdatedAt, null, "loaded tokenUpdatedAt is null");
+    assert.equal(loaded.inputTokens, 100, "loaded inputTokens round-trips");
+    assert.equal(loaded.outputTokens, 25, "loaded outputTokens round-trips");
+    assert.equal(loaded.tokenUpdatedAt, "2026-01-01T00:00:02Z", "loaded tokenUpdatedAt round-trips");
     assert.equal(loaded.goal, "test", "non-volatile fields round-trip");
 
-    // Even if a malformed save has volatile fields written (older version),
-    // loadState must scrub them.
+    // Even if a malformed save has context fields written (older version),
+    // loadState must scrub them without losing token totals.
     await fs.writeFile(
         join(workspace, "mission.json"),
-        JSON.stringify({ ...stateWithVolatile, contextTokens: 999, inputTokens: 999 }),
+        JSON.stringify({
+            ...stateWithVolatile,
+            contextTokens: 999,
+            inputTokens: 999,
+            hardCap: 5,
+            remainingTurns: 4,
+        }),
         "utf8",
     );
     const loaded2 = await loadState(workspace);
-    assert.equal(loaded2.contextTokens, null, "load scrubs volatile fields from disk");
-    assert.equal(loaded2.inputTokens, 0, "load scrubs token counters from disk");
+    assert.equal(loaded2.contextTokens, null, "load scrubs context fields from disk");
+    assert.equal(loaded2.inputTokens, 999, "load preserves token counters from disk");
+    assert.equal(loaded2.hardCap, undefined, "load scrubs legacy hardCap from disk");
+    assert.equal(loaded2.remainingTurns, undefined, "load scrubs legacy remainingTurns from disk");
 
     await fs.rm(join(workspace, "mission.json"), { force: true });
     await fs.writeFile(join(workspace, "autopilot.json"), JSON.stringify(stateWithVolatile), "utf8");
@@ -77,7 +87,7 @@ async function run() {
     await assert.rejects(() => fs.access(join(workspace, "autopilot.json")), "migration removes autopilot.json");
 
     await fs.rm(workspace, { recursive: true, force: true });
-    console.log("✓ test-persistence: 16/16 passed");
+    console.log("✓ test-persistence: 25/25 passed");
 }
 
 run().catch((err) => { console.error("FAIL:", err); process.exit(1); });

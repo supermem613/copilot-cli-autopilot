@@ -25,7 +25,7 @@ async function run() {
         noLaunch: true,
     });
 
-    const armed = { enabled: true, status: "armed", goal: "x", hardCap: 1, continuationsFired: 0 };
+    const armed = { enabled: true, status: "armed", goal: "x", continuationsFired: 0 };
 
     // Fire two visible calls + one hidden call back-to-back.
     // Without the lock the two armed calls would each start their own server.

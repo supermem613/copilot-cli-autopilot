@@ -114,6 +114,14 @@ export function createController({ session, workspacePath, log, onStateChange, o
                 { ephemeral: true },
             );
             notify();
+            if (state.status === "armed") {
+                await log("mission: restored armed objective; checking idle state for continuation", { ephemeral: true });
+                scheduleKickoff(() =>
+                    this.onIdle({ aborted: false }).catch((err) =>
+                        log(`mission: restore kickoff failed: ${err?.message ?? err}`, { level: "error" }),
+                    )
+                );
+            }
         },
 
         get snapshot() { return { ...state }; },
@@ -131,8 +139,7 @@ export function createController({ session, workspacePath, log, onStateChange, o
         },
 
         // Coarse context-window tracking. Updated on session.usage_info.
-        // In-memory only — not worth a disk write per tick. The next idle/start
-        // commit will incidentally persist whatever is current.
+        // In-memory only because it reflects point-in-time context pressure.
         onUsageInfo(data) {
             const tokens = data?.currentTokens;
             const max = data?.maxTokens;
@@ -163,10 +170,13 @@ export function createController({ session, workspacePath, log, onStateChange, o
                 reasoningTokens: (state.reasoningTokens || 0) + reasoningTokens,
                 tokenUpdatedAt: timestamp || new Date().toISOString(),
             };
+            track(persist().catch((err) =>
+                log(`mission: token counter persist failed: ${err?.message ?? err}`, { level: "warning" })
+            ));
             notify();
         },
 
-        async start(goal, opts = {}) {
+        async start(goal) {
             if (!state.enabled) {
                 await log("mission is DISABLED. Run /mission on to re-enable.", { level: "warning" });
                 return;
@@ -178,7 +188,7 @@ export function createController({ session, workspacePath, log, onStateChange, o
             if (wasActive && session.capabilities?.ui?.elicitation) {
                 const ok = await session.ui.confirm(
                     `Replace current mission objective?\n` +
-                    `  current: "${state.goal}" (${state.continuationsFired}/${state.hardCap} fired)\n` +
+                    `  current: "${state.goal}" (${state.continuationsFired} turns)\n` +
                     `  new:     "${goal}"`
                 );
                 if (!ok) {
@@ -189,12 +199,14 @@ export function createController({ session, workspacePath, log, onStateChange, o
                 await log(`mission: replacing active objective "${state.goal}"`, { level: "warning" });
             }
             const prev = state;
-            const cap = Number.isInteger(opts.hardCap) && opts.hardCap > 0 ? opts.hardCap : prev.hardCap;
-            await commit(prev, arm(state, goal, cap), "start");
+            await commit(prev, arm(state, goal), "start");
             await log(
-                `mission ARMED: "${goal}" [cap=${state.hardCap}, grace=${GRACE_MS}ms]. ` +
-                `Will fire on next idle. /mission pause|off to stop.`,
+                `mission ARMED: "${goal}" [grace=${GRACE_MS}ms]. ` +
+                `Will fire on next idle. /mission pause|clear|off to stop.`,
             );
+            if (onShow) {
+                await onShow({ ...state });
+            }
             // Kick off immediately — slash commands don't trigger session.idle on
             // their own, so without this the user would have to send a separate
             // prompt to start the loop. We synthesize an idle event with
@@ -226,6 +238,14 @@ export function createController({ session, workspacePath, log, onStateChange, o
             const prev = state;
             await commit(prev, resume(state), "resume");
             await log(`mission RESUMED: "${state.goal}". Will fire on next idle.`);
+            if (onShow) {
+                await onShow({ ...state });
+            }
+            scheduleKickoff(() =>
+                this.onIdle({ aborted: false }).catch((err) =>
+                    log(`mission: resume kickoff failed: ${err?.message ?? err}`, { level: "error" }),
+                )
+            );
         },
 
         async clearObjective() {
@@ -249,7 +269,7 @@ export function createController({ session, workspacePath, log, onStateChange, o
             }
             const prev = state;
             await commit(prev, enable(state), "on");
-            await log("mission ON. No objective armed. /mission start <text> to begin.");
+            await log("mission ON. No objective armed. /mission <objective> to begin.");
         },
 
         async show() {
@@ -287,17 +307,10 @@ export function createController({ session, workspacePath, log, onStateChange, o
             if (shuttingDown) return;
             const decision = shouldFire(state, data);
             if (!decision.fire) {
-                // Surface the spent transition so /mission show is accurate.
-                if (state.status === "armed" && state.remainingTurns <= 0) {
-                    const prev = state;
-                    try {
-                        await commit(prev, { ...state, status: "spent" }, "spent");
-                    } catch { /* logged + reverted in commit */ }
-                }
                 return;
             }
             // Capture identity for staleness detection (Shadow review #2).
-            // If the user runs /mission start with a new goal during grace,
+            // If the user runs /mission with a new goal during grace,
             // state.goal will differ — we must NOT send the stale prompt.
             const capturedGoal = state.goal;
             // Tentative reservation: only mark inFlight here. Budget is
@@ -335,19 +348,18 @@ export function createController({ session, workspacePath, log, onStateChange, o
                 return;
             }
 
-            // Commit the fire: decrement budget + increment fired counter NOW.
+            // Commit the fire: increment fired counter NOW.
             const prev3 = state;
             try {
                 await commit(prev3, markFiring(state), "commit fire");
             } catch { return; /* if persistence fails, don't send */ }
             const goal = state.goal;
-            const cap = state.hardCap;
             const fired = state.continuationsFired;
 
             scheduleSend(async () => {
                 try {
                     await session.send({
-                        prompt: buildContinuationPrompt(goal, fired, cap),
+                        prompt: buildContinuationPrompt(goal, fired),
                     });
                 } catch (err) {
                     await log(`mission: send failed: ${err?.message ?? err}`, { level: "error" });

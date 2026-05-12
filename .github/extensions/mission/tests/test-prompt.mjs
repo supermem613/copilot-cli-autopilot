@@ -5,8 +5,8 @@ import assert from "node:assert/strict";
 import { buildContinuationPrompt, detectComplete } from "../prompt.mjs";
 
 async function run() {
-    const prompt = buildContinuationPrompt("finish the rename", 1, 3);
-    assert.match(prompt, /\[mission 1\/3\]/, "prompt uses mission label");
+    const prompt = buildContinuationPrompt("finish the rename", 1);
+    assert.match(prompt, /\[mission turn 1\]/, "prompt uses mission turn label");
     assert.match(prompt, /MISSION_COMPLETE:/, "prompt asks for new token");
     assert.doesNotMatch(prompt, /AUTOPILOT_COMPLETE:/, "prompt does not ask for legacy token");
 
