@@ -93,6 +93,25 @@ async function run() {
     }
 
     {
+        const workspace = await mkdtemp(join(tmpdir(), "mission-idle-startup-"));
+        const logs = [];
+        const controller = createController({
+            session: makeSession(),
+            workspacePath: workspace,
+            log: async (msg) => { logs.push(msg); },
+            onStateChange: () => {},
+        });
+
+        await controller.init();
+        if (logs.some((msg) => /mission loaded/.test(msg))) {
+            throw new Error("idle startup must not log mission loaded noise");
+        }
+
+        await controller.shutdown();
+        await rm(workspace, { recursive: true, force: true });
+    }
+
+    {
         const workspace = await mkdtemp(join(tmpdir(), "mission-blocked-"));
         const logs = [];
         const session = makeSession();

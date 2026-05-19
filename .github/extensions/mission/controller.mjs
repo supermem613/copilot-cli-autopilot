@@ -109,10 +109,12 @@ export function createController({ session, workspacePath, log, onStateChange, o
     return {
         async init() {
             state = await loadState(workspacePath);
-            await log(
-                `mission loaded: ${summarize(state)} (workspace: ${workspacePath})`,
-                { ephemeral: true },
-            );
+            if (state.status !== "idle") {
+                await log(
+                    `mission loaded: ${summarize(state)} (workspace: ${workspacePath})`,
+                    { ephemeral: true },
+                );
+            }
             notify();
             if (state.status === "armed") {
                 await log("mission: restored armed objective; checking idle state for continuation", { ephemeral: true });

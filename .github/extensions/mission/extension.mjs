@@ -115,5 +115,3 @@ session.on?.("session.end", () => {
     controller.shutdown().catch(() => {});
     sidecar.shutdown().catch(() => {});
 });
-
-await logFn(`mission ready: ${controller.summary()}`, { ephemeral: true });
